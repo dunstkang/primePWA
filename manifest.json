@@ -1,0 +1,16 @@
+{
+  "name": "質數挑戰",
+  "short_name": "質數",
+  "description": "1~100 的 25 個質數，循序點擊 & 填空練習",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#1a3a2a",
+  "theme_color": "#1a3a2a",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

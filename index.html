@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>質數挑戰</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a3a2a">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css" />
+<script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+<style>
+:root {
+  --bg: #1a3a2a; --chalk: #f0ede0; --chalk-dim: #b8b5a8;
+  --blue: #5b9bd5; --gray: #888880; --red: #e05c5c; --gold: #f0c040;
+  --card-bg: #245038; --border: #3a6e52;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body {
+  font-family:'Noto Sans TC',sans-serif; background:var(--bg);
+  min-height:100vh; display:flex; flex-direction:column; align-items:center;
+  padding:16px; color:var(--chalk);
+  background-image:
+    repeating-linear-gradient(0deg,transparent,transparent 28px,rgba(255,255,255,0.02) 28px,rgba(255,255,255,0.02) 29px),
+    repeating-linear-gradient(90deg,transparent,transparent 28px,rgba(255,255,255,0.02) 28px,rgba(255,255,255,0.02) 29px);
+}
+h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; color:var(--chalk); text-shadow:2px 2px 0 rgba(0,0,0,0.3); margin-bottom:4px; }
+.subtitle { font-size:0.8rem; color:var(--chalk-dim); margin-bottom:20px; }
+.screen { display:none; width:100%; max-width:480px; }
+.screen.active { display:flex; flex-direction:column; align-items:center; }
+
+.menu-card { background:var(--card-bg); border:1px solid var(--border); border-radius:16px; padding:24px; width:100%; margin-bottom:16px; }
+.menu-card h2 { font-family:'Fredoka One',cursive; font-size:1.2rem; margin-bottom:16px; color:var(--gold); }
+.opt-row { display:flex; gap:8px; flex-wrap:wrap; }
+.opt-btn { flex:1; min-width:80px; padding:10px 8px; border-radius:10px; border:2px solid var(--border); background:var(--bg); color:var(--chalk-dim); font-size:0.95rem; cursor:pointer; transition:all 0.15s; font-family:'Noto Sans TC',sans-serif; }
+.opt-btn.selected { border-color:var(--gold); background:#2a5a3e; color:var(--gold); font-weight:700; }
+.opt-btn:hover:not(.selected) { border-color:var(--chalk-dim); color:var(--chalk); }
+.start-btn { width:100%; padding:16px; background:linear-gradient(135deg,#3a8a5a,#2a6a44); color:var(--chalk); border:none; border-radius:12px; font-size:1.2rem; font-family:'Fredoka One',cursive; letter-spacing:1px; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3); transition:transform 0.1s,box-shadow 0.1s; }
+.start-btn:hover { transform:translateY(-2px); }
+.start-btn:active { transform:translateY(0); }
+
+.game-header { width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+.game-info { font-size:0.9rem; color:var(--chalk-dim); }
+.game-info span { color:var(--gold); font-weight:700; }
+.back-btn { background:none; border:1px solid var(--border); color:var(--chalk-dim); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; font-family:'Noto Sans TC',sans-serif; transition:all 0.15s; }
+.back-btn:hover { border-color:var(--chalk-dim); color:var(--chalk); }
+.mode-label { font-size:0.85rem; color:var(--chalk-dim); margin-bottom:10px; letter-spacing:1px; }
+.mode-label strong { color:var(--gold); }
+
+.hint-box { width:100%; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; padding:12px 16px; margin-bottom:12px; font-size:0.9rem; line-height:1.8; display:none; }
+.hint-box .lbl { color:var(--chalk-dim); }
+.hint-box .val { color:var(--gold); font-weight:700; font-size:1.05rem; }
+.hint-box .nums { color:var(--chalk); font-family:'Fredoka One',cursive; letter-spacing:2px; font-size:1.1rem; }
+
+.grid { display:grid; gap:10px; margin-bottom:14px; }
+.grid.g4 { grid-template-columns:repeat(4,1fr); }
+.grid.g3 { grid-template-columns:repeat(3,1fr); }
+.cell { aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-family:'Fredoka One',cursive; font-size:1.6rem; border-radius:12px; border:2px solid var(--border); background:var(--card-bg); cursor:pointer; user-select:none; transition:transform 0.1s,color 0.3s,border-color 0.3s,background 0.3s; color:var(--blue); position:relative; box-shadow:0 3px 8px rgba(0,0,0,0.2); }
+.cell:hover:not(.done):not(.blank) { transform:scale(1.06); }
+.cell.done { color:var(--gray); border-color:#555550; cursor:default; background:#1e2e28; }
+.cell.done::after { content:'✓'; position:absolute; top:3px; right:6px; font-size:0.65rem; opacity:0.5; }
+.cell.wrong { animation:flash-wrong 0.7s ease; }
+@keyframes flash-wrong {
+  0%,100% { color:var(--blue); border-color:var(--border); }
+  25%,75% { color:var(--red); border-color:var(--red); box-shadow:0 0 14px rgba(224,92,92,0.6); }
+  50% { color:var(--blue); border-color:var(--border); }
+}
+.cell.blank { border:2px dashed var(--gold); background:#1a3020; cursor:default; }
+.cell.blank input { width:100%; height:100%; background:none; border:none; outline:none; text-align:center; font-family:'Fredoka One',cursive; font-size:1.4rem; color:var(--gold); caret-color:var(--gold); }
+.cell.blank.done-fill { border-color:#555550; background:#1e2e28; }
+.cell.blank.done-fill input { color:var(--gray); }
+.cell.blank.wrong-fill { animation:flash-border 0.6s ease; }
+@keyframes flash-border {
+  0%,100% { border-color:var(--gold); }
+  50% { border-color:var(--red); box-shadow:0 0 14px rgba(224,92,92,0.6); }
+}
+
+.status-bar { width:100%; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.progress-txt { font-family:'Fredoka One',cursive; font-size:1.1rem; color:var(--gold); }
+.action-btn { padding:8px 18px; border-radius:8px; border:none; cursor:pointer; font-family:'Noto Sans TC',sans-serif; font-size:0.9rem; transition:all 0.15s; }
+.btn-retry { background:var(--blue); color:white; }
+.btn-next  { background:#555550; color:var(--chalk); display:none; margin-left:6px; }
+.btn-retry:hover { background:#4a88c0; }
+.btn-next:hover  { background:#666660; }
+
+.complete-banner { width:100%; background:linear-gradient(135deg,#2a4a3a,#1e3a2c); border:1px solid var(--gray); border-radius:16px; padding:20px; text-align:center; display:none; margin-top:4px; }
+.complete-banner .big { font-family:'Fredoka One',cursive; font-size:2rem; color:var(--gold); }
+.complete-banner p { color:var(--chalk-dim); margin-top:8px; font-size:0.9rem; }
+</style>
+</head>
+<body>
+
+<h1>🔢 質數挑戰</h1>
+<p class="subtitle">1～100 共有 25 個質數，你都記得嗎？</p>
+
+<!-- MENU -->
+<div class="screen active" id="screen-menu">
+  <div class="menu-card">
+    <h2>📋 遊戲模式</h2>
+    <div class="opt-row">
+      <button class="opt-btn selected" data-group="mode" data-val="seq">① 循序點擊</button>
+      <button class="opt-btn" data-group="mode" data-val="fill">② 填入數字</button>
+    </div>
+  </div>
+  <div class="menu-card">
+    <h2>🔲 格子大小</h2>
+    <div class="opt-row">
+      <button class="opt-btn selected" data-group="size" data-val="16">4×4（16格）</button>
+      <button class="opt-btn" data-group="size" data-val="9">3×3（9格）</button>
+    </div>
+  </div>
+  <div class="menu-card" id="fill-opts" style="display:none">
+    <h2>✏️ 空格數量</h2>
+    <div class="opt-row">
+      <button class="opt-btn selected" data-group="blanks" data-val="1">1 格</button>
+      <button class="opt-btn" data-group="blanks" data-val="3">3 格</button>
+      <button class="opt-btn" data-group="blanks" data-val="5">5 格</button>
+    </div>
+  </div>
+  <button class="start-btn" id="start-btn">開始挑戰 ▶</button>
+</div>
+
+<!-- GAME -->
+<div class="screen" id="screen-game">
+  <div class="game-header">
+    <button class="back-btn" id="back-btn">◀ 返回</button>
+    <div class="game-info">答對：<span id="score">0</span>／<span id="total">0</span></div>
+  </div>
+  <div class="mode-label" id="mode-label"></div>
+
+  <div class="hint-box" id="seq-hint">
+    <span class="lbl">下一個要點：</span><span class="val" id="seq-next-val">—</span>
+  </div>
+
+  <div class="hint-box" id="fill-hint">
+    <div><span class="lbl">範圍：</span><span class="val" id="fill-range">—</span></div>
+    <div style="margin-top:2px"><span class="lbl">待填入（從小到大）：</span><span class="nums" id="fill-nums">—</span></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="status-bar">
+    <div class="progress-txt" id="progress-txt">進度 0%</div>
+    <div>
+      <button class="action-btn btn-retry" id="retry-btn">🔄 再來一局</button>
+      <button class="action-btn btn-next"  id="next-btn">下一題 ▶</button>
+    </div>
+  </div>
+
+  <div class="complete-banner" id="complete-banner">
+    <div class="big" id="complete-icon">🎉 完成！</div>
+    <p id="complete-msg"></p>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.opt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const g = btn.dataset.group;
+    document.querySelectorAll(`[data-group="${g}"]`).forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    if (g === 'mode')
+      document.getElementById('fill-opts').style.display = btn.dataset.val === 'fill' ? '' : 'none';
+  });
+});
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+</script>
+
+<script type="py">
+from pyscript import document, window
+from pyodide.ffi import create_proxy
+import random
+
+PRIMES = [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97]
+state = {}
+
+def get_cfg():
+    def sel(g):
+        btns = document.querySelectorAll(f'[data-group="{g}"]')
+        for i in range(btns.length):
+            b = btns.item(i)
+            if 'selected' in b.className:
+                return b.getAttribute('data-val')
+    return {'mode': sel('mode'), 'size': int(sel('size')), 'blanks': int(sel('blanks') or 1)}
+
+def start_game(*args):
+    cfg = get_cfg()
+    n = cfg['size']
+    start = random.randint(0, len(PRIMES) - n)
+    chosen = PRIMES[start:start + n]
+    shuffled = chosen[:]
+    random.shuffle(shuffled)
+
+    state.clear()
+    state.update({
+        'mode': cfg['mode'], 'n': n, 'chosen': chosen, 'shuffled': shuffled,
+        'blanks': cfg['blanks'], 'done_set': set(), 'errors': 0,
+        'next_idx': 0, 'blank_idxs': [], 'blank_correct': {}, 'filled_ok': set(),
+    })
+
+    if cfg['mode'] == 'fill':
+        _setup_blanks()
+
+    _render_grid()
+    _update_hints()
+    _update_status()
+
+    document.getElementById('complete-banner').style.display = 'none'
+    document.getElementById('next-btn').style.display = 'none'
+    document.getElementById('score').innerText = '0'
+
+    dim = '4×4' if n == 16 else '3×3'
+    if cfg['mode'] == 'seq':
+        document.getElementById('mode-label').innerHTML = f'<strong>循序點擊模式</strong> — {dim}，從小到大依序按'
+        document.getElementById('total').innerText = str(n)
+    else:
+        document.getElementById('mode-label').innerHTML = f'<strong>填入數字模式</strong> — {dim}，填入空格的質數'
+        document.getElementById('total').innerText = str(cfg['blanks'])
+
+    window.showScreen('game')
+
+def _setup_blanks():
+    chosen, shuffled = state['chosen'], state['shuffled']
+    min_v, max_v = chosen[0], chosen[-1]
+    eligible = [i for i, v in enumerate(shuffled) if v != min_v and v != max_v]
+    random.shuffle(eligible)
+    picked = eligible[:state['blanks']]
+    state['blank_idxs'] = picked
+    for i in picked:
+        state['blank_correct'][i] = shuffled[i]
+
+def _render_grid():
+    grid = document.getElementById('grid')
+    n, dim = state['n'], 4 if state['n'] == 16 else 3
+    grid.className = 'grid ' + ('g4' if dim == 4 else 'g3')
+    grid.innerHTML = ''
+    avail = min(340, int(window.innerWidth) - 40)
+    csz = int((avail - (dim - 1) * 10) / dim)
+    grid.style.width = f'{avail}px'
+
+    for idx, val in enumerate(state['shuffled']):
+        cell = document.createElement('div')
+        cell.className = 'cell'
+        cell.setAttribute('data-idx', str(idx))
+        cell.style.width = f'{csz}px'
+        cell.style.fontSize = '1.2rem' if csz < 70 else '1.6rem'
+
+        if state['mode'] == 'fill' and idx in state['blank_idxs']:
+            cell.classList.add('blank')
+            inp = document.createElement('input')
+            inp.type = 'number'; inp.inputMode = 'numeric'; inp.placeholder = '?'
+            inp.addEventListener('keydown', create_proxy(_make_kd(idx)))
+            inp.addEventListener('change',  create_proxy(_make_ch(idx)))
+            cell.appendChild(inp)
+        else:
+            cell.innerText = str(val)
+            if state['mode'] == 'seq':
+                cell.addEventListener('click', create_proxy(_make_sc(idx)))
+        grid.appendChild(cell)
+
+def _make_sc(idx):
+    def h(e): _seq_click(idx)
+    return h
+def _make_kd(idx):
+    def h(e):
+        if e.key == 'Enter':
+            _check_fill(idx, document.querySelector(f'.cell[data-idx="{idx}"] input'))
+    return h
+def _make_ch(idx):
+    def h(e): _check_fill(idx, document.querySelector(f'.cell[data-idx="{idx}"] input'))
+    return h
+
+def _seq_click(idx):
+    if idx in state['done_set']: return
+    val = state['shuffled'][idx]
+    expected = state['chosen'][state['next_idx']]
+    cell = document.querySelector(f'.cell[data-idx="{idx}"]')
+    if val == expected:
+        state['done_set'].add(idx); state['next_idx'] += 1
+        cell.classList.add('done')
+        _update_status(); _update_hints()
+        if state['next_idx'] == state['n']: _finish()
+    else:
+        state['errors'] += 1
+        cell.classList.add('wrong')
+        def rm(*a): cell.classList.remove('wrong')
+        window.setTimeout(create_proxy(rm), 700)
+
+def _check_fill(idx, inp):
+    if idx in state['filled_ok']: return
+    try: uv = int(inp.value)
+    except: return
+    cell = document.querySelector(f'.cell[data-idx="{idx}"]')
+    if uv == state['blank_correct'][idx]:
+        state['filled_ok'].add(idx)
+        cell.classList.add('done-fill'); inp.readOnly = True
+        _update_status(); _update_hints()
+        if len(state['filled_ok']) == state['blanks']: _finish()
+    else:
+        state['errors'] += 1
+        cell.classList.add('wrong-fill')
+        def clear(*a):
+            cell.classList.remove('wrong-fill')
+            inp.value = ''; inp.focus()
+        window.setTimeout(create_proxy(clear), 700)
+
+def _update_hints():
+    sb = document.getElementById('seq-hint')
+    fb = document.getElementById('fill-hint')
+    if state['mode'] == 'seq':
+        sb.style.display = ''; fb.style.display = 'none'
+        ni = state['next_idx']
+        document.getElementById('seq-next-val').innerText = str(state['chosen'][ni]) if ni < state['n'] else '—'
+    else:
+        sb.style.display = 'none'; fb.style.display = ''
+        document.getElementById('fill-range').innerText = f"{state['chosen'][0]} ～ {state['chosen'][-1]}"
+        remaining = sorted(state['blank_correct'][i] for i in state['blank_idxs'] if i not in state['filled_ok'])
+        document.getElementById('fill-nums').innerText = '  '.join(str(v) for v in remaining) if remaining else '（全部填完了！）'
+
+def _update_status():
+    done  = len(state['done_set']) if state['mode'] == 'seq' else len(state['filled_ok'])
+    total = state['n']             if state['mode'] == 'seq' else state['blanks']
+    document.getElementById('score').innerText = str(done)
+    pct = int(done / total * 100) if total else 0
+    document.getElementById('progress-txt').innerText = f'進度 {pct}%'
+
+def _finish():
+    banner = document.getElementById('complete-banner')
+    banner.style.display = ''
+    total = state['n'] if state['mode'] == 'seq' else state['blanks']
+    err = state['errors']
+    document.getElementById('complete-icon').innerText = '🏆 完美！零失誤！' if err == 0 else '🎉 完成！'
+    document.getElementById('complete-msg').innerText = f"答對全部 {total} 格，{'完全沒有失誤！' if err == 0 else f'共失誤 {err} 次'}"
+    document.getElementById('next-btn').style.display = ''
+
+document.getElementById('start-btn').onclick = create_proxy(start_game)
+document.getElementById('retry-btn').onclick = create_proxy(start_game)
+document.getElementById('next-btn').onclick  = create_proxy(start_game)
+document.getElementById('back-btn').onclick  = create_proxy(lambda e: window.showScreen('menu'))
+</script>
+
+<script>
+if ('serviceWorker' in navigator)
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+</script>
+</body>
+</html>
