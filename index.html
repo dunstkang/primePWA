@@ -24,6 +24,7 @@ body {
     repeating-linear-gradient(0deg,transparent,transparent 28px,rgba(255,255,255,0.02) 28px,rgba(255,255,255,0.02) 29px),
     repeating-linear-gradient(90deg,transparent,transparent 28px,rgba(255,255,255,0.02) 28px,rgba(255,255,255,0.02) 29px);
 }
+#version-tag { font-size:0.7rem; color:var(--chalk-dim); opacity:0.5; text-align:right; width:100%; max-width:480px; margin-bottom:4px; }
 h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; color:var(--chalk); text-shadow:2px 2px 0 rgba(0,0,0,0.3); margin-bottom:4px; }
 .subtitle { font-size:0.8rem; color:var(--chalk-dim); margin-bottom:20px; }
 .screen { display:none; width:100%; max-width:480px; }
@@ -39,13 +40,22 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 .start-btn:hover { transform:translateY(-2px); }
 .start-btn:active { transform:translateY(0); }
 
-.game-header { width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+.game-header { width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
 .game-info { font-size:0.9rem; color:var(--chalk-dim); }
 .game-info span { color:var(--gold); font-weight:700; }
 .back-btn { background:none; border:1px solid var(--border); color:var(--chalk-dim); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; font-family:'Noto Sans TC',sans-serif; transition:all 0.15s; }
 .back-btn:hover { border-color:var(--chalk-dim); color:var(--chalk); }
-.mode-label { font-size:0.85rem; color:var(--chalk-dim); margin-bottom:10px; letter-spacing:1px; }
+.mode-label { font-size:0.85rem; color:var(--chalk-dim); margin-bottom:6px; letter-spacing:1px; }
 .mode-label strong { color:var(--gold); }
+
+/* 計時器 */
+#timer-display {
+  font-family:'Fredoka One',cursive; font-size:1.1rem;
+  color:var(--chalk-dim); margin-bottom:10px; letter-spacing:1px;
+  min-height:1.5em; text-align:center;
+}
+#timer-display .t-num { color:var(--gold); font-size:1.3rem; }
+#timer-display .t-done { color:#4caf7d; }
 
 .hint-box { width:100%; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; padding:12px 16px; margin-bottom:12px; font-size:0.9rem; line-height:1.8; display:none; }
 .hint-box .lbl { color:var(--chalk-dim); }
@@ -90,6 +100,7 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 </head>
 <body>
 
+<div id="version-tag">Version: 2026.05.02-v1.1（質數挑戰版）</div>
 <h1>🔢 質數挑戰</h1>
 <p class="subtitle">1～100 共有 25 個質數，你都記得嗎？</p>
 
@@ -127,6 +138,9 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
     <div class="game-info">答對：<span id="score">0</span>／<span id="total">0</span></div>
   </div>
   <div class="mode-label" id="mode-label"></div>
+
+  <!-- 計時器 -->
+  <div id="timer-display"></div>
 
   <div class="hint-box" id="seq-hint">
     <span class="lbl">下一個要點：</span><span class="val" id="seq-next-val">—</span>
@@ -173,9 +187,11 @@ function showScreen(name) {
 from pyscript import document, window
 from pyodide.ffi import create_proxy
 import random
+import time
 
 PRIMES = [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97]
 state = {}
+_timer_id = None
 
 def get_cfg():
     def sel(g):
@@ -187,6 +203,12 @@ def get_cfg():
     return {'mode': sel('mode'), 'size': int(sel('size')), 'blanks': int(sel('blanks') or 1)}
 
 def start_game(*args):
+    global _timer_id
+    # 清除舊計時器
+    if _timer_id is not None:
+        window.clearInterval(_timer_id)
+        _timer_id = None
+
     cfg = get_cfg()
     n = cfg['size']
     start = random.randint(0, len(PRIMES) - n)
@@ -199,6 +221,7 @@ def start_game(*args):
         'mode': cfg['mode'], 'n': n, 'chosen': chosen, 'shuffled': shuffled,
         'blanks': cfg['blanks'], 'done_set': set(), 'errors': 0,
         'next_idx': 0, 'blank_idxs': [], 'blank_correct': {}, 'filled_ok': set(),
+        'start_time': time.time(), 'elapsed': 0, 'finished': False,
     })
 
     if cfg['mode'] == 'fill':
@@ -220,7 +243,25 @@ def start_game(*args):
         document.getElementById('mode-label').innerHTML = f'<strong>填入數字模式</strong> — {dim}，填入空格的質數'
         document.getElementById('total').innerText = str(cfg['blanks'])
 
+    # 啟動計時器（每 100ms 更新一次）
+    _timer_id = window.setInterval(create_proxy(_tick_timer), 100)
+    _render_timer()
+
     window.showScreen('game')
+
+def _tick_timer(*args):
+    if state.get('finished'): return
+    state['elapsed'] = time.time() - state['start_time']
+    _render_timer()
+
+def _render_timer():
+    el = document.getElementById('timer-display')
+    if state.get('finished'):
+        t = state['elapsed']
+        el.innerHTML = f'⏱ 完成時間：<span class="t-done">{t:.1f} 秒</span>'
+    else:
+        t = state.get('elapsed', 0)
+        el.innerHTML = f'⏱ 計時：<span class="t-num">{t:.1f}</span> 秒'
 
 def _setup_blanks():
     chosen, shuffled = state['chosen'], state['shuffled']
@@ -328,12 +369,23 @@ def _update_status():
     document.getElementById('progress-txt').innerText = f'進度 {pct}%'
 
 def _finish():
+    global _timer_id
+    # 停止計時
+    state['finished'] = True
+    state['elapsed'] = time.time() - state['start_time']
+    if _timer_id is not None:
+        window.clearInterval(_timer_id)
+        _timer_id = None
+    _render_timer()
+
     banner = document.getElementById('complete-banner')
     banner.style.display = ''
     total = state['n'] if state['mode'] == 'seq' else state['blanks']
     err = state['errors']
+    t = state['elapsed']
     document.getElementById('complete-icon').innerText = '🏆 完美！零失誤！' if err == 0 else '🎉 完成！'
-    document.getElementById('complete-msg').innerText = f"答對全部 {total} 格，{'完全沒有失誤！' if err == 0 else f'共失誤 {err} 次'}"
+    err_txt = '完全沒有失誤！' if err == 0 else f'共失誤 {err} 次'
+    document.getElementById('complete-msg').innerText = f"答對全部 {total} 格，{err_txt}　用時 {t:.1f} 秒"
     document.getElementById('next-btn').style.display = ''
 
 document.getElementById('start-btn').onclick = create_proxy(start_game)
