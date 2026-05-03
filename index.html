@@ -97,6 +97,34 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 .complete-banner { width:100%; background:linear-gradient(135deg,#2a4a3a,#1e3a2c); border:1px solid var(--gray); border-radius:16px; padding:20px; text-align:center; display:none; margin-top:4px; }
 .complete-banner .big { font-family:'Fredoka One',cursive; font-size:2rem; color:var(--gold); }
 .complete-banner p { color:var(--chalk-dim); margin-top:8px; font-size:0.9rem; }
+
+/* ③ 找出質數 */
+.pick-progress {
+  text-align:center; font-family:'Fredoka One',cursive;
+  font-size:1.1rem; color:var(--chalk-dim); margin-bottom:16px; letter-spacing:1px;
+}
+.pick-progress strong { color:var(--gold); }
+.pick-btns {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:14px; width:100%; margin-bottom:14px;
+}
+.pick-btn {
+  padding:28px 10px; font-family:'Fredoka One',cursive;
+  font-size:2.2rem; border-radius:16px;
+  border:2px solid var(--border); background:var(--card-bg);
+  color:var(--blue); cursor:pointer; user-select:none;
+  box-shadow:0 4px 12px rgba(0,0,0,0.25);
+  transition:transform 0.1s, box-shadow 0.1s;
+  position:relative;
+}
+.pick-btn:hover { transform:scale(1.04); box-shadow:0 6px 16px rgba(0,0,0,0.35); }
+.pick-btn:active { transform:scale(0.97); }
+.pick-btn.wrong { animation:pick-flash 0.7s ease; }
+@keyframes pick-flash {
+  0%,100% { color:var(--blue); border-color:var(--border); background:var(--card-bg); }
+  25%,75% { color:var(--red); border-color:var(--red); background:#3a1a1a; box-shadow:0 0 18px rgba(224,92,92,0.7); }
+  50% { color:var(--blue); border-color:var(--border); background:var(--card-bg); }
+}
 </style>
 </head>
 <body>
@@ -112,9 +140,18 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
     <div class="opt-row">
       <button class="opt-btn selected" data-group="mode" data-val="seq">① 循序點擊</button>
       <button class="opt-btn" data-group="mode" data-val="fill">② 填入數字</button>
+      <button class="opt-btn" data-group="mode" data-val="pick">③ 找出質數</button>
     </div>
   </div>
-  <div class="menu-card">
+  <div class="menu-card" id="pick-opts" style="display:none">
+    <h2>🎯 挑戰組數</h2>
+    <div class="opt-row">
+      <button class="opt-btn" data-group="rounds" data-val="3">3 組</button>
+      <button class="opt-btn selected" data-group="rounds" data-val="5">5 組</button>
+      <button class="opt-btn" data-group="rounds" data-val="10">10 組</button>
+    </div>
+  </div>
+  <div class="menu-card" id="grid-opts">
     <h2>🔲 格子大小</h2>
     <div class="opt-row">
       <button class="opt-btn selected" data-group="size" data-val="16">4×4（16格）</button>
@@ -152,6 +189,12 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
     <div style="margin-top:2px"><span class="lbl">空格大小關係：</span><span class="nums" id="fill-nums">—</span></div>
   </div>
 
+  <!-- ③ 找出質數模式 -->
+  <div id="pick-area" style="display:none; width:100%">
+    <div class="pick-progress" id="pick-progress">第 1 組 / 共 5 組</div>
+    <div class="pick-btns" id="pick-btns"></div>
+  </div>
+
   <div class="grid" id="grid"></div>
 
   <div class="status-bar">
@@ -174,8 +217,12 @@ document.querySelectorAll('.opt-btn').forEach(btn => {
     const g = btn.dataset.group;
     document.querySelectorAll(`[data-group="${g}"]`).forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
-    if (g === 'mode')
-      document.getElementById('fill-opts').style.display = btn.dataset.val === 'fill' ? '' : 'none';
+    if (g === 'mode') {
+      const m = btn.dataset.val;
+      document.getElementById('fill-opts').style.display  = m === 'fill' ? '' : 'none';
+      document.getElementById('pick-opts').style.display  = m === 'pick' ? '' : 'none';
+      document.getElementById('grid-opts').style.display  = m === 'pick' ? 'none' : '';
+    }
   });
 });
 function showScreen(name) {
@@ -191,6 +238,9 @@ import random
 import time
 
 PRIMES = [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97]
+# 1~100 的合數（排除 1）
+COMPOSITES = [n for n in range(2, 101) if n not in PRIMES]
+
 state = {}
 _timer_id = None
 
@@ -201,16 +251,50 @@ def get_cfg():
             b = btns.item(i)
             if 'selected' in b.className:
                 return b.getAttribute('data-val')
-    return {'mode': sel('mode'), 'size': int(sel('size')), 'blanks': int(sel('blanks') or 1)}
+    return {
+        'mode':   sel('mode'),
+        'size':   int(sel('size') or 16),
+        'blanks': int(sel('blanks') or 1),
+        'rounds': int(sel('rounds') or 5),
+    }
 
 def start_game(*args):
     global _timer_id
-    # 清除舊計時器
     if _timer_id is not None:
         window.clearInterval(_timer_id)
         _timer_id = None
 
     cfg = get_cfg()
+
+    # ── ③ 找出質數模式 ──────────────────────────
+    if cfg['mode'] == 'pick':
+        state.clear()
+        state.update({
+            'mode': 'pick',
+            'rounds': cfg['rounds'],
+            'current_round': 0,
+            'errors': 0,
+            'start_time': time.time(),
+            'elapsed': 0,
+            'finished': False,
+            'locked': False,
+        })
+        document.getElementById('complete-banner').style.display = 'none'
+        document.getElementById('next-btn').style.display = 'none'
+        document.getElementById('score').innerText = '0'
+        document.getElementById('total').innerText = str(cfg['rounds'])
+        document.getElementById('mode-label').innerHTML = '<strong>找出質數模式</strong> — 按下那個質數！'
+        document.getElementById('seq-hint').style.display = 'none'
+        document.getElementById('fill-hint').style.display = 'none'
+        document.getElementById('grid').style.display = 'none'
+        document.getElementById('pick-area').style.display = ''
+        _timer_id = window.setInterval(create_proxy(_tick_timer), 100)
+        _render_timer()
+        _pick_next_round()
+        window.showScreen('game')
+        return
+
+    # ── ① ② 原有流程 ────────────────────────────
     n = cfg['size']
     start = random.randint(0, len(PRIMES) - n)
     chosen = PRIMES[start:start + n]
@@ -228,6 +312,8 @@ def start_game(*args):
     if cfg['mode'] == 'fill':
         _setup_blanks()
 
+    document.getElementById('grid').style.display = ''
+    document.getElementById('pick-area').style.display = 'none'
     _render_grid()
     _update_hints()
     _update_status()
@@ -244,10 +330,8 @@ def start_game(*args):
         document.getElementById('mode-label').innerHTML = f'<strong>填入數字模式</strong> — {dim}，填入空格的質數'
         document.getElementById('total').innerText = str(cfg['blanks'])
 
-    # 啟動計時器（每 100ms 更新一次）
     _timer_id = window.setInterval(create_proxy(_tick_timer), 100)
     _render_timer()
-
     window.showScreen('game')
 
 def _tick_timer(*args):
@@ -383,11 +467,79 @@ def _update_hints():
         document.getElementById('fill-nums').innerHTML = chain
 
 def _update_status():
-    done  = len(state['done_set']) if state['mode'] == 'seq' else len(state['filled_ok'])
-    total = state['n']             if state['mode'] == 'seq' else state['blanks']
+    if state['mode'] == 'pick':
+        done = state['current_round']
+        total = state['rounds']
+    elif state['mode'] == 'seq':
+        done = len(state['done_set']); total = state['n']
+    else:
+        done = len(state['filled_ok']); total = state['blanks']
     document.getElementById('score').innerText = str(done)
     pct = int(done / total * 100) if total else 0
     document.getElementById('progress-txt').innerText = f'進度 {pct}%'
+
+# ── ③ pick 模式函數 ─────────────────────────────
+def _pick_next_round():
+    """出新一組題目：1 個質數 + 3 個合數，2×2 排列"""
+    prime = random.choice(PRIMES)
+    composites = random.sample(COMPOSITES, 3)
+    nums = [prime] + composites
+    random.shuffle(nums)
+    state['pick_prime'] = prime
+    state['pick_nums'] = nums
+    _render_pick_btns()
+    r = state['current_round']
+    total = state['rounds']
+    document.getElementById('pick-progress').innerHTML = \
+        f'第 <strong>{r + 1}</strong> 組 ／ 共 <strong>{total}</strong> 組'
+
+def _render_pick_btns():
+    """渲染 4 個大按鈕"""
+    container = document.getElementById('pick-btns')
+    container.innerHTML = ''
+    for num in state['pick_nums']:
+        btn = document.createElement('button')
+        btn.className = 'pick-btn'
+        btn.innerText = str(num)
+        btn.addEventListener('click', create_proxy(_make_pick_click(num)))
+        container.appendChild(btn)
+
+def _make_pick_click(num):
+    def handler(event):
+        _handle_pick_click(num, event.currentTarget)
+    return handler
+
+def _handle_pick_click(num, btn_el):
+    if state.get('locked') or state.get('finished'):
+        return
+    if num == state['pick_prime']:
+        # 按對！
+        state['current_round'] += 1
+        _update_status()
+        if state['current_round'] >= state['rounds']:
+            _finish()
+        else:
+            _pick_next_round()
+    else:
+        # 按錯：閃爍 → 重新排列
+        state['errors'] += 1
+        state['locked'] = True
+        # 所有按鈕加 wrong 類
+        btns = document.querySelectorAll('.pick-btn')
+        for i in range(btns.length):
+            btns.item(i).classList.add('wrong')
+        def reshuffle(*a):
+            state['locked'] = False
+            # 移除 wrong
+            bs = document.querySelectorAll('.pick-btn')
+            for i in range(bs.length):
+                bs.item(i).classList.remove('wrong')
+            # 同組數字重新排列
+            nums = state['pick_nums'][:]
+            random.shuffle(nums)
+            state['pick_nums'] = nums
+            _render_pick_btns()
+        window.setTimeout(create_proxy(reshuffle), 700)
 
 def _finish():
     global _timer_id
@@ -401,12 +553,18 @@ def _finish():
 
     banner = document.getElementById('complete-banner')
     banner.style.display = ''
-    total = state['n'] if state['mode'] == 'seq' else state['blanks']
     err = state['errors']
     t = state['elapsed']
     document.getElementById('complete-icon').innerText = '🏆 完美！零失誤！' if err == 0 else '🎉 完成！'
     err_txt = '完全沒有失誤！' if err == 0 else f'共失誤 {err} 次'
-    document.getElementById('complete-msg').innerText = f"答對全部 {total} 格，{err_txt}　用時 {t:.1f} 秒"
+    if state['mode'] == 'pick':
+        total = state['rounds']
+        document.getElementById('complete-msg').innerText = \
+            f"完成 {total} 組質數辨識，{err_txt}　用時 {t:.1f} 秒"
+    else:
+        total = state['n'] if state['mode'] == 'seq' else state['blanks']
+        document.getElementById('complete-msg').innerText = \
+            f"答對全部 {total} 格，{err_txt}　用時 {t:.1f} 秒"
     document.getElementById('next-btn').style.display = ''
 
 document.getElementById('start-btn').onclick = create_proxy(start_game)
