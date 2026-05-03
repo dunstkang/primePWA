@@ -98,7 +98,23 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 .complete-banner .big { font-family:'Fredoka One',cursive; font-size:2rem; color:var(--gold); }
 .complete-banner p { color:var(--chalk-dim); margin-top:8px; font-size:0.9rem; }
 
-/* ③ 找出質數 */
+/* 音效/音樂控制列 */
+.audio-bar {
+  display:flex; gap:10px; justify-content:flex-end;
+  width:100%; margin-bottom:12px;
+}
+.audio-btn {
+  display:flex; align-items:center; gap:5px;
+  padding:7px 14px; border-radius:20px;
+  border:1px solid var(--border); background:var(--card-bg);
+  color:var(--chalk-dim); font-size:0.85rem; cursor:pointer;
+  font-family:'Noto Sans TC',sans-serif;
+  transition:all 0.15s;
+}
+.audio-btn:hover { border-color:var(--chalk-dim); color:var(--chalk); }
+.audio-btn.on  { border-color:var(--gold); color:var(--gold); background:#2a5a3e; }
+.audio-btn.off { border-color:#555; color:#666; background:var(--bg); }
+.audio-btn .icon { font-size:1rem; }
 .pick-progress {
   text-align:center; font-family:'Fredoka One',cursive;
   font-size:1.1rem; color:var(--chalk-dim); margin-bottom:16px; letter-spacing:1px;
@@ -129,12 +145,20 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 </head>
 <body>
 
+<div class="audio-bar">
+  <button class="audio-btn on" id="btn-music" onclick="toggleMusic()">
+    <span class="icon">🎵</span> 音樂
+  </button>
+  <button class="audio-btn on" id="btn-sfx" onclick="toggleSfx()">
+    <span class="icon">🔔</span> 音效
+  </button>
+</div>
 <h1>🔢 質數挑戰</h1>
 <p class="subtitle">1～100 共有 25 個質數，你都記得嗎？</p>
 
 <!-- MENU -->
 <div class="screen active" id="screen-menu">
-  <div id="version-tag">Version: 2026.05.02-v1.1.01（質數挑戰版）</div>
+  <div id="version-tag">Version: 2026.05.02-v1.1.02（質數挑戰版）</div>
   <div class="menu-card">
     <h2>📋 遊戲模式</h2>
     <div class="opt-row">
@@ -230,10 +254,13 @@ function showScreen(name) {
   document.getElementById('screen-' + name).classList.add('active');
 }
 
-// ── 音效引擎（Web Audio API，無需音效檔）──────────
+// ── 音效引擎（Web Audio API）─────────────────────
 const _ac = new (window.AudioContext || window.webkitAudioContext)();
+let _sfxOn   = true;
+let _musicOn = true;
 
 function _playTone(freq, type, duration, gainVal, freqEnd) {
+  if (!_sfxOn) return;
   const osc = _ac.createOscillator();
   const gain = _ac.createGain();
   osc.connect(gain); gain.connect(_ac.destination);
@@ -246,24 +273,56 @@ function _playTone(freq, type, duration, gainVal, freqEnd) {
   osc.start(_ac.currentTime);
   osc.stop(_ac.currentTime + duration);
 }
-
 function sfx_correct() {
-  // 上揚兩音：清脆 ding
   _playTone(523, 'sine', 0.12, 0.4);
   setTimeout(() => _playTone(784, 'sine', 0.18, 0.35), 100);
 }
-function sfx_wrong() {
-  // 低沉 buzz
-  _playTone(220, 'sawtooth', 0.25, 0.3, 110);
-}
+function sfx_wrong() { _playTone(220, 'sawtooth', 0.25, 0.3, 110); }
 function sfx_finish() {
-  // 小段上升旋律
   const notes = [523, 659, 784, 1047];
   notes.forEach((f, i) => setTimeout(() => _playTone(f, 'sine', 0.22, 0.35), i * 120));
 }
 
-// 解除 AudioContext 暫停（需要使用者互動後才能播放）
-document.addEventListener('click', () => { if (_ac.state === 'suspended') _ac.resume(); }, { once: true });
+// ── 背景音樂 ──────────────────────────────────────
+const _bgm = new Audio('Noon_in_the_Orchard.mp3');
+_bgm.loop = true;
+_bgm.volume = 0.35;
+
+function _tryPlayBgm() {
+  if (_musicOn) _bgm.play().catch(() => {});
+}
+
+function toggleMusic() {
+  _musicOn = !_musicOn;
+  const btn = document.getElementById('btn-music');
+  if (_musicOn) {
+    btn.className = 'audio-btn on';
+    btn.innerHTML = '<span class="icon">🎵</span> 音樂';
+    _bgm.play().catch(() => {});
+  } else {
+    btn.className = 'audio-btn off';
+    btn.innerHTML = '<span class="icon">🔇</span> 音樂';
+    _bgm.pause();
+  }
+}
+
+function toggleSfx() {
+  _sfxOn = !_sfxOn;
+  const btn = document.getElementById('btn-sfx');
+  if (_sfxOn) {
+    btn.className = 'audio-btn on';
+    btn.innerHTML = '<span class="icon">🔔</span> 音效';
+  } else {
+    btn.className = 'audio-btn off';
+    btn.innerHTML = '<span class="icon">🔕</span> 音效';
+  }
+}
+
+// 第一次互動後啟動 AudioContext 和背景音樂
+document.addEventListener('click', () => {
+  if (_ac.state === 'suspended') _ac.resume();
+  _tryPlayBgm();
+}, { once: true });
 </script>
 
 <script type="py">
