@@ -229,6 +229,41 @@ function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
 }
+
+// ── 音效引擎（Web Audio API，無需音效檔）──────────
+const _ac = new (window.AudioContext || window.webkitAudioContext)();
+
+function _playTone(freq, type, duration, gainVal, freqEnd) {
+  const osc = _ac.createOscillator();
+  const gain = _ac.createGain();
+  osc.connect(gain); gain.connect(_ac.destination);
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, _ac.currentTime);
+  if (freqEnd !== undefined)
+    osc.frequency.exponentialRampToValueAtTime(freqEnd, _ac.currentTime + duration);
+  gain.gain.setValueAtTime(gainVal, _ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, _ac.currentTime + duration);
+  osc.start(_ac.currentTime);
+  osc.stop(_ac.currentTime + duration);
+}
+
+function sfx_correct() {
+  // 上揚兩音：清脆 ding
+  _playTone(523, 'sine', 0.12, 0.4);
+  setTimeout(() => _playTone(784, 'sine', 0.18, 0.35), 100);
+}
+function sfx_wrong() {
+  // 低沉 buzz
+  _playTone(220, 'sawtooth', 0.25, 0.3, 110);
+}
+function sfx_finish() {
+  // 小段上升旋律
+  const notes = [523, 659, 784, 1047];
+  notes.forEach((f, i) => setTimeout(() => _playTone(f, 'sine', 0.22, 0.35), i * 120));
+}
+
+// 解除 AudioContext 暫停（需要使用者互動後才能播放）
+document.addEventListener('click', () => { if (_ac.state === 'suspended') _ac.resume(); }, { once: true });
 </script>
 
 <script type="py">
@@ -414,11 +449,13 @@ def _seq_click(idx):
     expected = state['chosen'][state['next_idx']]
     cell = document.querySelector(f'.cell[data-idx="{idx}"]')
     if val == expected:
+        window.sfx_correct()
         state['done_set'].add(idx); state['next_idx'] += 1
         cell.classList.add('done')
         _update_status(); _update_hints()
         if state['next_idx'] == state['n']: _finish()
     else:
+        window.sfx_wrong()
         state['errors'] += 1
         cell.classList.add('wrong')
         def rm(*a): cell.classList.remove('wrong')
@@ -430,11 +467,13 @@ def _check_fill(idx, inp):
     except: return
     cell = document.querySelector(f'.cell[data-idx="{idx}"]')
     if uv == state['blank_correct'][idx]:
+        window.sfx_correct()
         state['filled_ok'].add(idx)
         cell.classList.add('done-fill'); inp.readOnly = True
         _update_status(); _update_hints()
         if len(state['filled_ok']) == state['blanks']: _finish()
     else:
+        window.sfx_wrong()
         state['errors'] += 1
         cell.classList.add('wrong-fill')
         def clear(*a):
@@ -513,7 +552,7 @@ def _handle_pick_click(num, btn_el):
     if state.get('locked') or state.get('finished'):
         return
     if num == state['pick_prime']:
-        # 按對！
+        window.sfx_correct()
         state['current_round'] += 1
         _update_status()
         if state['current_round'] >= state['rounds']:
@@ -521,20 +560,17 @@ def _handle_pick_click(num, btn_el):
         else:
             _pick_next_round()
     else:
-        # 按錯：閃爍 → 重新排列
+        window.sfx_wrong()
         state['errors'] += 1
         state['locked'] = True
-        # 所有按鈕加 wrong 類
         btns = document.querySelectorAll('.pick-btn')
         for i in range(btns.length):
             btns.item(i).classList.add('wrong')
         def reshuffle(*a):
             state['locked'] = False
-            # 移除 wrong
             bs = document.querySelectorAll('.pick-btn')
             for i in range(bs.length):
                 bs.item(i).classList.remove('wrong')
-            # 同組數字重新排列
             nums = state['pick_nums'][:]
             random.shuffle(nums)
             state['pick_nums'] = nums
@@ -543,13 +579,13 @@ def _handle_pick_click(num, btn_el):
 
 def _finish():
     global _timer_id
-    # 停止計時
     state['finished'] = True
     state['elapsed'] = time.time() - state['start_time']
     if _timer_id is not None:
         window.clearInterval(_timer_id)
         _timer_id = None
     _render_timer()
+    window.sfx_finish()
 
     banner = document.getElementById('complete-banner')
     banner.style.display = ''
