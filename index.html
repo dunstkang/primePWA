@@ -98,7 +98,41 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 .complete-banner .big { font-family:'Fredoka One',cursive; font-size:2rem; color:var(--gold); }
 .complete-banner p { color:var(--chalk-dim); margin-top:8px; font-size:0.9rem; }
 
-/* 音效/音樂控制列 */
+/* ── 啟動畫面 ── */
+#screen-splash {
+  position:fixed; inset:0; z-index:999;
+  background:var(--bg); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; padding:32px;
+  background-image:
+    repeating-linear-gradient(0deg,transparent,transparent 28px,rgba(255,255,255,0.02) 28px,rgba(255,255,255,0.02) 29px),
+    repeating-linear-gradient(90deg,transparent,transparent 28px,rgba(255,255,255,0.02) 28px,rgba(255,255,255,0.02) 29px);
+}
+#screen-splash .splash-icon { font-size:5rem; margin-bottom:16px; animation:bob 2s ease-in-out infinite; }
+@keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+#screen-splash h1 { font-family:'Fredoka One',cursive; font-size:2.6rem; letter-spacing:3px; color:var(--chalk); text-shadow:2px 2px 0 rgba(0,0,0,0.4); margin-bottom:6px; }
+#screen-splash .splash-sub { font-size:0.9rem; color:var(--chalk-dim); margin-bottom:40px; }
+.splash-start-btn {
+  padding:18px 52px; font-family:'Fredoka One',cursive; font-size:1.4rem;
+  letter-spacing:2px; border:none; border-radius:50px; cursor:pointer;
+  background:linear-gradient(135deg,#3a8a5a,#2a6a44);
+  color:var(--chalk); box-shadow:0 6px 20px rgba(0,0,0,0.4);
+  transition:transform 0.15s, box-shadow 0.15s;
+  animation:pulse-btn 2s ease-in-out infinite;
+}
+@keyframes pulse-btn {
+  0%,100%{box-shadow:0 6px 20px rgba(0,0,0,0.4), 0 0 0 0 rgba(58,138,90,0.5)}
+  50%{box-shadow:0 6px 20px rgba(0,0,0,0.4), 0 0 0 14px rgba(58,138,90,0)}
+}
+.splash-start-btn:hover { transform:scale(1.05); }
+.splash-start-btn:active { transform:scale(0.97); }
+.splash-meta {
+  margin-top:36px; text-align:center; line-height:1.9;
+  color:var(--chalk-dim); font-size:0.78rem; opacity:0.6;
+}
+.splash-meta .author { color:var(--chalk-dim); font-size:0.85rem; opacity:0.9; }
+.splash-meta .version { color:var(--gold); opacity:0.8; font-family:'Fredoka One',cursive; font-size:0.8rem; }
+
+/* ── 音效/音樂控制列 ── */
 .audio-bar {
   display:flex; gap:10px; justify-content:flex-end;
   width:100%; margin-bottom:12px;
@@ -145,6 +179,19 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 </head>
 <body>
 
+<!-- ====== SPLASH SCREEN ====== -->
+<div id="screen-splash">
+  <div class="splash-icon">🔢</div>
+  <h1>質數挑戰</h1>
+  <p class="splash-sub">1～100 共有 25 個質數，你都記得嗎？</p>
+  <button class="splash-start-btn" onclick="splashStart()">開始遊戲 ▶</button>
+  <div class="splash-meta">
+    <div class="author">✍️ Dunst Kang</div>
+    <div class="version">Version 2026.05.03-v1.2</div>
+    <div>質數挑戰版 · Prime Challenge</div>
+  </div>
+</div>
+
 <div class="audio-bar">
   <button class="audio-btn on" id="btn-music" onclick="toggleMusic()">
     <span class="icon">🎵</span> 音樂
@@ -158,7 +205,7 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 
 <!-- MENU -->
 <div class="screen active" id="screen-menu">
-  <div id="version-tag">Version: 2026.05.02-v1.1.02（質數挑戰版）</div>
+  <div id="version-tag">Version: 2026.05.02-v1.1（質數挑戰版）</div>
   <div class="menu-card">
     <h2>📋 遊戲模式</h2>
     <div class="opt-row">
@@ -254,6 +301,17 @@ function showScreen(name) {
   document.getElementById('screen-' + name).classList.add('active');
 }
 
+function splashStart() {
+  // 隱藏啟動畫面
+  const splash = document.getElementById('screen-splash');
+  splash.style.transition = 'opacity 0.4s';
+  splash.style.opacity = '0';
+  setTimeout(() => splash.style.display = 'none', 400);
+  // 啟動 AudioContext + 背景音樂
+  if (_ac.state === 'suspended') _ac.resume();
+  _tryPlayBgm();
+}
+
 // ── 音效引擎（Web Audio API）─────────────────────
 const _ac = new (window.AudioContext || window.webkitAudioContext)();
 let _sfxOn   = true;
@@ -318,11 +376,7 @@ function toggleSfx() {
   }
 }
 
-// 第一次互動後啟動 AudioContext 和背景音樂
-document.addEventListener('click', () => {
-  if (_ac.state === 'suspended') _ac.resume();
-  _tryPlayBgm();
-}, { once: true });
+// AudioContext 在 splashStart() 裡手動 resume
 </script>
 
 <script type="py">
