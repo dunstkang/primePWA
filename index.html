@@ -215,7 +215,7 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
   <button class="splash-start-btn" onclick="splashStart()">開始遊戲 ▶</button>
   <div class="splash-meta">
     <div class="author">✍️ Dunst Kang</div>
-    <div class="version">Version 2026.05.03-v1.3</div>
+    <div class="version">Version 2026.05.03-v1.4</div>
     <div>質數挑戰版 · Prime Challenge</div>
   </div>
 </div>
@@ -233,7 +233,7 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 
 <!-- MENU -->
 <div class="screen active" id="screen-menu">
-  <div id="version-tag">Version: 2026.05.03-v1.3（質數挑戰版）</div>
+  <div id="version-tag">Version: 2026.05.03-v1.4（質數挑戰版）</div>
   <div class="menu-card">
     <h2>📋 遊戲模式</h2>
     <div class="opt-row">
@@ -451,8 +451,9 @@ def get_cfg():
         btns = document.querySelectorAll(f'[data-group="{g}"]')
         for i in range(btns.length):
             b = btns.item(i)
-            if 'selected' in b.className:
+            if b.classList.contains('selected'):
                 return b.getAttribute('data-val')
+        return None
     return {
         'mode':   sel('mode'),
         'size':   int(sel('size') or 16),
@@ -468,8 +469,7 @@ def start_game(*args):
         _timer_id = None
 
     cfg = get_cfg()
-
-    # ── ④ 質數判斷模式 ──────────────────────────
+    if not cfg['mode']: return  # 防呆 ──────────────────────────
     if cfg['mode'] == 'judge':
         diff_range = {'easy':(2,100), 'mid':(50,150), 'hard':(100,200), 'hell':(200,500)}
         lo, hi = diff_range[cfg['diff']]
