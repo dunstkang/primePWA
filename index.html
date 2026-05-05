@@ -215,7 +215,7 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
   <button class="splash-start-btn" onclick="splashStart()">開始遊戲 ▶</button>
   <div class="splash-meta">
     <div class="author">✍️ Dunst Kang</div>
-    <div class="version">Version 2026.05.03-v1.4</div>
+    <div class="version">Version 2026.05.03-v1.5</div>
     <div>質數挑戰版 · Prime Challenge</div>
   </div>
 </div>
@@ -233,7 +233,7 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 
 <!-- MENU -->
 <div class="screen active" id="screen-menu">
-  <div id="version-tag">Version: 2026.05.03-v1.4（質數挑戰版）</div>
+  <div id="version-tag">Version: 2026.05.03-v1.5（質數挑戰版）</div>
   <div class="menu-card">
     <h2>📋 遊戲模式</h2>
     <div class="opt-row">
@@ -430,7 +430,10 @@ function toggleSfx() {
   }
 }
 
-// AudioContext 在 splashStart() 裡手動 resume
+function getSelectedVal(group) {
+  const btn = document.querySelector(`[data-group="${group}"].selected`);
+  return btn ? btn.getAttribute('data-val') : null;
+}
 </script>
 
 <script type="py">
@@ -448,12 +451,8 @@ _timer_id = None
 
 def get_cfg():
     def sel(g):
-        btns = document.querySelectorAll(f'[data-group="{g}"]')
-        for i in range(btns.length):
-            b = btns.item(i)
-            if b.classList.contains('selected'):
-                return b.getAttribute('data-val')
-        return None
+        v = window.getSelectedVal(g)
+        return str(v) if v is not None else None
     return {
         'mode':   sel('mode'),
         'size':   int(sel('size') or 16),
