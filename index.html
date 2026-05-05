@@ -215,7 +215,7 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
   <button class="splash-start-btn" onclick="splashStart()">開始遊戲 ▶</button>
   <div class="splash-meta">
     <div class="author">✍️ Dunst Kang</div>
-    <div class="version">Version 2026.05.03-v1.2</div>
+    <div class="version">Version 2026.05.03-v1.3</div>
     <div>質數挑戰版 · Prime Challenge</div>
   </div>
 </div>
@@ -233,7 +233,7 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 
 <!-- MENU -->
 <div class="screen active" id="screen-menu">
-  <div id="version-tag">Version: 2026.05.02-v1.1（質數挑戰版）</div>
+  <div id="version-tag">Version: 2026.05.03-v1.3（質數挑戰版）</div>
   <div class="menu-card">
     <h2>📋 遊戲模式</h2>
     <div class="opt-row">
@@ -527,6 +527,8 @@ def start_game(*args):
         document.getElementById('fill-hint').style.display = 'none'
         document.getElementById('grid').style.display = 'none'
         document.getElementById('pick-area').style.display = ''
+        document.getElementById('judge-area').style.display = 'none'
+        document.getElementById('judge-report').style.display = 'none'
         _timer_id = window.setInterval(create_proxy(_tick_timer), 100)
         _render_timer()
         _pick_next_round()

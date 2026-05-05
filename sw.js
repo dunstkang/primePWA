@@ -1,4 +1,4 @@
-const CACHE_NAME = 'prime-pwa-2026.05.03-v1.2'; // 每次 push 就手動跳號
+const CACHE_NAME = 'prime-pwa-2026.05.03-v1.3'; // 每次 push 就手動跳號
 
 self.addEventListener('install', (e) => {
   self.skipWaiting(); // 新版 SW 立刻取代舊版，不等分頁關閉
