@@ -175,6 +175,34 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
   25%,75% { color:var(--red); border-color:var(--red); background:#3a1a1a; box-shadow:0 0 18px rgba(224,92,92,0.7); }
   50% { color:var(--blue); border-color:var(--border); background:var(--card-bg); }
 }
+
+/* ④ 質數判斷模式 */
+.judge-qnum { text-align:center; font-family:'Fredoka One',cursive; font-size:1rem; color:var(--chalk-dim); margin-bottom:8px; letter-spacing:1px; }
+.judge-qnum strong { color:var(--gold); }
+.judge-number { text-align:center; font-family:'Fredoka One',cursive; font-size:5.5rem; color:var(--chalk); text-shadow:0 4px 20px rgba(0,0,0,0.4); margin:8px 0 4px; min-height:1.2em; }
+.judge-feedback { text-align:center; font-size:2.2rem; min-height:3rem; margin-bottom:8px; }
+.judge-feedback.pop { animation:fb-pop 0.3s ease; }
+@keyframes fb-pop { 0%{transform:scale(0.4);opacity:0} 70%{transform:scale(1.25)} 100%{transform:scale(1);opacity:1} }
+.judge-btns { display:grid; grid-template-columns:1fr 1fr; gap:16px; width:100%; margin-bottom:14px; }
+.judge-btn { padding:22px 10px; font-size:3rem; border-radius:20px; border:3px solid var(--border); background:var(--card-bg); cursor:pointer; user-select:none; box-shadow:0 4px 14px rgba(0,0,0,0.3); transition:transform 0.1s, box-shadow 0.1s; }
+.judge-btn:hover:not(:disabled) { transform:scale(1.05); }
+.judge-btn:active:not(:disabled) { transform:scale(0.95); }
+.yes-btn { color:#4cde90; border-color:#2a6a44; }
+.yes-btn:hover:not(:disabled) { border-color:#4cde90; box-shadow:0 0 20px rgba(76,222,144,0.4); }
+.no-btn  { color:#e05c5c; border-color:#6a2a2a; }
+.no-btn:hover:not(:disabled)  { border-color:#e05c5c; box-shadow:0 0 20px rgba(224,92,92,0.4); }
+.judge-btn:disabled { opacity:0.35; cursor:default; transform:none !important; }
+
+/* 結算報告 */
+.report-header { background:var(--card-bg); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:12px; text-align:center; line-height:1.9; font-size:0.95rem; }
+.report-header .big-time { font-family:'Fredoka One',cursive; font-size:2rem; color:var(--gold); }
+.report-list { width:100%; display:flex; flex-direction:column; gap:6px; max-height:340px; overflow-y:auto; padding-bottom:8px; }
+.report-row { display:flex; justify-content:space-between; align-items:center; background:var(--card-bg); border:1px solid var(--border); border-radius:10px; padding:10px 14px; font-size:0.95rem; }
+.report-row .rnum { font-family:'Fredoka One',cursive; font-size:1.3rem; color:var(--chalk); min-width:56px; }
+.report-row .rtag { font-size:0.8rem; color:var(--chalk-dim); flex:1; padding:0 6px; font-family:'Fredoka One',cursive; }
+.report-row .rresult { font-size:1.3rem; min-width:28px; text-align:right; }
+.report-row.r-correct { border-color:#2a5a3e; }
+.report-row.r-wrong   { border-color:#5a2a2a; background:#2a1a1a; }
 </style>
 </head>
 <body>
@@ -212,6 +240,16 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
       <button class="opt-btn selected" data-group="mode" data-val="seq">① 循序點擊</button>
       <button class="opt-btn" data-group="mode" data-val="fill">② 填入數字</button>
       <button class="opt-btn" data-group="mode" data-val="pick">③ 找出質數</button>
+      <button class="opt-btn" data-group="mode" data-val="judge">④ 質數判斷</button>
+    </div>
+  </div>
+  <div class="menu-card" id="judge-opts" style="display:none">
+    <h2>⚡ 難度</h2>
+    <div class="opt-row">
+      <button class="opt-btn selected" data-group="diff" data-val="easy">簡單<br><small>2~100</small></button>
+      <button class="opt-btn" data-group="diff" data-val="mid">中等<br><small>50~150</small></button>
+      <button class="opt-btn" data-group="diff" data-val="hard">困難<br><small>100~200</small></button>
+      <button class="opt-btn" data-group="diff" data-val="hell">地獄<br><small>200~500</small></button>
     </div>
   </div>
   <div class="menu-card" id="pick-opts" style="display:none">
@@ -266,7 +304,22 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
     <div class="pick-btns" id="pick-btns"></div>
   </div>
 
-  <div class="grid" id="grid"></div>
+  <!-- ④ 質數判斷模式 -->
+  <div id="judge-area" style="display:none; width:100%">
+    <div class="judge-qnum" id="judge-qnum">第 1 題 / 共 10 題</div>
+    <div class="judge-number" id="judge-number">?</div>
+    <div class="judge-feedback" id="judge-feedback"></div>
+    <div class="judge-btns">
+      <button class="judge-btn yes-btn" id="judge-yes">⭕</button>
+      <button class="judge-btn no-btn"  id="judge-no">❌</button>
+    </div>
+  </div>
+
+  <!-- ④ 質數判斷：結算報告 -->
+  <div id="judge-report" style="display:none; width:100%">
+    <div class="report-header" id="report-header"></div>
+    <div class="report-list" id="report-list"></div>
+  </div>
 
   <div class="status-bar">
     <div class="progress-txt" id="progress-txt">進度 0%</div>
@@ -290,9 +343,10 @@ document.querySelectorAll('.opt-btn').forEach(btn => {
     btn.classList.add('selected');
     if (g === 'mode') {
       const m = btn.dataset.val;
-      document.getElementById('fill-opts').style.display  = m === 'fill' ? '' : 'none';
-      document.getElementById('pick-opts').style.display  = m === 'pick' ? '' : 'none';
-      document.getElementById('grid-opts').style.display  = m === 'pick' ? 'none' : '';
+      document.getElementById('fill-opts').style.display   = m === 'fill'  ? '' : 'none';
+      document.getElementById('pick-opts').style.display   = m === 'pick'  ? '' : 'none';
+      document.getElementById('judge-opts').style.display  = m === 'judge' ? '' : 'none';
+      document.getElementById('grid-opts').style.display   = (m === 'pick' || m === 'judge') ? 'none' : '';
     }
   });
 });
@@ -404,6 +458,7 @@ def get_cfg():
         'size':   int(sel('size') or 16),
         'blanks': int(sel('blanks') or 1),
         'rounds': int(sel('rounds') or 5),
+        'diff':   sel('diff') or 'easy',
     }
 
 def start_game(*args):
@@ -413,6 +468,42 @@ def start_game(*args):
         _timer_id = None
 
     cfg = get_cfg()
+
+    # ── ④ 質數判斷模式 ──────────────────────────
+    if cfg['mode'] == 'judge':
+        diff_range = {'easy':(2,100), 'mid':(50,150), 'hard':(100,200), 'hell':(200,500)}
+        lo, hi = diff_range[cfg['diff']]
+        diff_name = {'easy':'簡單','mid':'中等','hard':'困難','hell':'地獄'}[cfg['diff']]
+        state.clear()
+        state.update({
+            'mode': 'judge',
+            'lo': lo, 'hi': hi,
+            'total_q': 10,
+            'current_q': 0,
+            'correct': 0,
+            'errors': 0,
+            'start_time': time.time(),
+            'elapsed': 0,
+            'finished': False,
+            'locked': False,
+            'history': [],       # [{num, is_prime, user_yes, correct}]
+        })
+        document.getElementById('complete-banner').style.display = 'none'
+        document.getElementById('next-btn').style.display = 'none'
+        document.getElementById('score').innerText = '0'
+        document.getElementById('total').innerText = '10'
+        document.getElementById('mode-label').innerHTML = f'<strong>質數判斷模式</strong> — {diff_name}（{lo}～{hi}）'
+        document.getElementById('seq-hint').style.display = 'none'
+        document.getElementById('fill-hint').style.display = 'none'
+        document.getElementById('grid').style.display = 'none'
+        document.getElementById('pick-area').style.display = 'none'
+        document.getElementById('judge-area').style.display = ''
+        document.getElementById('judge-report').style.display = 'none'
+        _timer_id = window.setInterval(create_proxy(_tick_timer), 100)
+        _render_timer()
+        _judge_next_q()
+        window.showScreen('game')
+        return
 
     # ── ③ 找出質數模式 ──────────────────────────
     if cfg['mode'] == 'pick':
@@ -462,6 +553,8 @@ def start_game(*args):
 
     document.getElementById('grid').style.display = ''
     document.getElementById('pick-area').style.display = 'none'
+    document.getElementById('judge-area').style.display = 'none'
+    document.getElementById('judge-report').style.display = 'none'
     _render_grid()
     _update_hints()
     _update_status()
@@ -620,8 +713,9 @@ def _update_hints():
 
 def _update_status():
     if state['mode'] == 'pick':
-        done = state['current_round']
-        total = state['rounds']
+        done = state['current_round']; total = state['rounds']
+    elif state['mode'] == 'judge':
+        done = state['correct']; total = state['total_q']
     elif state['mode'] == 'seq':
         done = len(state['done_set']); total = state['n']
     else:
@@ -690,6 +784,153 @@ def _handle_pick_click(num, btn_el):
             _render_pick_btns()
         window.setTimeout(create_proxy(reshuffle), 700)
 
+# ── ④ judge 模式函數 ────────────────────────────
+
+def _is_prime(n):
+    if n < 2: return False
+    if n == 2: return True
+    if n % 2 == 0: return False
+    i = 3
+    while i * i <= n:
+        if n % i == 0: return False
+        i += 2
+    return True
+
+def _smallest_prime_factor(n):
+    if n < 2: return None
+    if n % 2 == 0: return 2
+    i = 3
+    while i * i <= n:
+        if n % i == 0: return i
+        i += 2
+    return n  # itself is prime
+
+def _factor_str(n):
+    """產生最小質因數展開，ex: 57 = 3×19, 48 = 2×24"""
+    p = _smallest_prime_factor(n)
+    if p == n: return f'{n} 是質數'
+    return f'{n} = {p} × {n // p}'
+
+def _make_judge_pool():
+    """產生 10 題，其中質數 4~6 題，其餘為合數"""
+    lo, hi = state['lo'], state['hi']
+    primes_in_range = [n for n in range(lo, hi+1) if _is_prime(n)]
+    composites_in_range = [n for n in range(lo, hi+1) if not _is_prime(n)]
+    n_primes = random.randint(4, min(6, len(primes_in_range)))
+    n_composites = 10 - n_primes
+    pool = random.sample(primes_in_range, n_primes) + random.sample(composites_in_range, n_composites)
+    random.shuffle(pool)
+    return pool
+
+def _judge_next_q():
+    if 'pool' not in state:
+        state['pool'] = _make_judge_pool()
+    q = state['current_q']
+    num = state['pool'][q]
+    state['current_num'] = num
+    state['current_is_prime'] = _is_prime(num)
+
+    # 更新 UI
+    document.getElementById('judge-qnum').innerHTML = \
+        f'第 <strong>{q+1}</strong> 題 ／ 共 <strong>{state["total_q"]}</strong> 題'
+    document.getElementById('judge-number').innerText = str(num)
+    fb = document.getElementById('judge-feedback')
+    fb.innerText = ''
+    fb.className = 'judge-feedback'
+
+    # 解鎖按鈕
+    document.getElementById('judge-yes').disabled = False
+    document.getElementById('judge-no').disabled  = False
+
+def _handle_judge(user_yes):
+    if state.get('locked') or state.get('finished'): return
+    state['locked'] = True
+
+    num = state['current_num']
+    is_prime = state['current_is_prime']
+    correct = (user_yes == is_prime)
+
+    # 記錄歷史
+    state['history'].append({
+        'num': num, 'is_prime': is_prime,
+        'user_yes': user_yes, 'correct': correct,
+    })
+
+    if correct:
+        state['correct'] += 1
+        window.sfx_correct()
+        fb_text = '✅ 正確！' + ('（是質數）' if is_prime else '（不是質數）')
+        fb_color = '#4cde90'
+    else:
+        state['errors'] += 1
+        window.sfx_wrong()
+        fb_text = '❌ 答錯！' + ('（其實是質數）' if is_prime else '（其實不是質數）')
+        fb_color = '#e05c5c'
+
+    fb = document.getElementById('judge-feedback')
+    fb.innerText = fb_text
+    fb.style.color = fb_color
+    fb.className = 'judge-feedback pop'
+
+    # 鎖定按鈕
+    document.getElementById('judge-yes').disabled = True
+    document.getElementById('judge-no').disabled  = True
+
+    _update_status()
+
+    # 0.6 秒後進下一題
+    def next_q(*a):
+        state['locked'] = False
+        state['current_q'] += 1
+        if state['current_q'] >= state['total_q']:
+            _finish()
+        else:
+            _judge_next_q()
+    window.setTimeout(create_proxy(next_q), 600)
+
+def _show_judge_report():
+    """顯示結算報告"""
+    document.getElementById('judge-area').style.display = 'none'
+    document.getElementById('judge-report').style.display = ''
+
+    t = state['elapsed']
+    correct = state['correct']
+    err = state['errors']
+    acc = int(correct / state['total_q'] * 100)
+    trophy = '🏆' if err == 0 else ('🎉' if acc >= 70 else '📝')
+
+    hdr = document.getElementById('report-header')
+    hdr.innerHTML = (
+        f'<div class="big-time">⏱ {t:.1f} 秒</div>'
+        f'<div>答對 <strong style="color:var(--gold)">{correct}</strong> / 10 題　'
+        f'正確率 <strong style="color:var(--gold)">{acc}%</strong></div>'
+        f'<div style="font-size:1.5rem;margin-top:4px">{trophy}</div>'
+    )
+
+    lst = document.getElementById('report-list')
+    lst.innerHTML = ''
+    for item in state['history']:
+        row = document.createElement('div')
+        cls = 'report-row ' + ('r-correct' if item['correct'] else 'r-wrong')
+        row.className = cls
+
+        num = item['num']
+        if item['is_prime']:
+            tag = '質數'
+        else:
+            tag = _factor_str(num)
+
+        user_ans = '⭕ 是' if item['user_yes'] else '❌ 否'
+        result_icon = '✅' if item['correct'] else '❌'
+
+        row.innerHTML = (
+            f'<span class="rnum">{num}</span>'
+            f'<span class="rtag">{tag}</span>'
+            f'<span style="font-size:0.8rem;color:var(--chalk-dim)">{user_ans}</span>'
+            f'<span class="rresult">{result_icon}</span>'
+        )
+        lst.appendChild(row)
+
 def _finish():
     global _timer_id
     state['finished'] = True
@@ -699,6 +940,12 @@ def _finish():
         _timer_id = None
     _render_timer()
     window.sfx_finish()
+
+    if state['mode'] == 'judge':
+        _show_judge_report()
+        document.getElementById('complete-banner').style.display = 'none'
+        document.getElementById('next-btn').style.display = ''
+        return
 
     banner = document.getElementById('complete-banner')
     banner.style.display = ''
@@ -720,6 +967,8 @@ document.getElementById('start-btn').onclick = create_proxy(start_game)
 document.getElementById('retry-btn').onclick = create_proxy(start_game)
 document.getElementById('next-btn').onclick  = create_proxy(start_game)
 document.getElementById('back-btn').onclick  = create_proxy(lambda e: window.showScreen('menu'))
+document.getElementById('judge-yes').onclick = create_proxy(lambda e: _handle_judge(True))
+document.getElementById('judge-no').onclick  = create_proxy(lambda e: _handle_judge(False))
 </script>
 
 <script>
