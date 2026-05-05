@@ -203,9 +203,28 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 .report-row .rresult { font-size:1.3rem; min-width:28px; text-align:right; }
 .report-row.r-correct { border-color:#2a5a3e; }
 .report-row.r-wrong   { border-color:#5a2a2a; background:#2a1a1a; }
+/* 更新提示條 */
+#update-bar {
+  display:none; position:fixed; bottom:0; left:0; right:0; z-index:9999;
+  background:#2a5a3e; border-top:2px solid var(--gold);
+  padding:12px 20px; align-items:center; justify-content:space-between;
+  gap:12px; font-size:0.9rem; color:var(--chalk);
+  box-shadow:0 -4px 16px rgba(0,0,0,0.4);
+}
+#update-bar button {
+  padding:8px 20px; background:var(--gold); color:#1a3a2a;
+  border:none; border-radius:8px; font-weight:700;
+  cursor:pointer; font-size:0.9rem; white-space:nowrap; flex-shrink:0;
+}
 </style>
 </head>
 <body>
+
+<!-- 新版更新提示條 -->
+<div id="update-bar">
+  <span>🎉 有新版本可用！</span>
+  <button onclick="location.reload()">立即更新</button>
+</div>
 
 <!-- ====== SPLASH SCREEN ====== -->
 <div id="screen-splash">
@@ -979,13 +998,24 @@ document.getElementById('judge-no').onclick  = create_proxy(lambda e: _handle_ju
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then(reg => {
-      // 等 SW 就緒後詢問版號
+
+      // 版號顯示
       const sw = reg.active || reg.waiting || reg.installing;
-      if (sw) {
-        sw.postMessage('GET_VERSION');
-      }
+      if (sw) sw.postMessage('GET_VERSION');
+
+      // 偵測新版 SW 安裝完成 → 提示使用者重整
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            // 有新版可用，顯示提示條
+            const bar = document.getElementById('update-bar');
+            if (bar) bar.style.display = 'flex';
+          }
+        });
+      });
     });
-    // 接收 SW 回傳的版號
+
     navigator.serviceWorker.addEventListener('message', (e) => {
       if (e.data?.type === 'VERSION') {
         const v = e.data.version;
