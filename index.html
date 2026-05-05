@@ -215,7 +215,7 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
   <button class="splash-start-btn" onclick="splashStart()">開始遊戲 ▶</button>
   <div class="splash-meta">
     <div class="author">✍️ Dunst Kang</div>
-    <div class="version">Version 2026.05.03-v1.5</div>
+    <div class="version" id="splash-version"></div>
     <div>質數挑戰版 · Prime Challenge</div>
   </div>
 </div>
@@ -233,7 +233,7 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 
 <!-- MENU -->
 <div class="screen active" id="screen-menu">
-  <div id="version-tag">Version: 2026.05.03-v1.5（質數挑戰版）</div>
+  <div id="version-tag"></div>
   <div class="menu-card">
     <h2>📋 遊戲模式</h2>
     <div class="opt-row">
@@ -432,7 +432,16 @@ function toggleSfx() {
 
 function getSelectedVal(group) {
   const btn = document.querySelector(`[data-group="${group}"].selected`);
-  return btn ? btn.getAttribute('data-val') : null;
+  return btn ? btn.getAttribute('data-val') : '';
+}
+function getGameCfg() {
+  return JSON.stringify({
+    mode:   getSelectedVal('mode'),
+    size:   parseInt(getSelectedVal('size')   || '16'),
+    blanks: parseInt(getSelectedVal('blanks') || '1'),
+    rounds: parseInt(getSelectedVal('rounds') || '5'),
+    diff:   getSelectedVal('diff') || 'easy',
+  });
 }
 </script>
 
@@ -450,16 +459,8 @@ state = {}
 _timer_id = None
 
 def get_cfg():
-    def sel(g):
-        v = window.getSelectedVal(g)
-        return str(v) if v is not None else None
-    return {
-        'mode':   sel('mode'),
-        'size':   int(sel('size') or 16),
-        'blanks': int(sel('blanks') or 1),
-        'rounds': int(sel('rounds') or 5),
-        'diff':   sel('diff') or 'easy',
-    }
+    import json
+    return json.loads(window.getGameCfg())
 
 def start_game(*args):
     global _timer_id
@@ -973,8 +974,27 @@ document.getElementById('judge-no').onclick  = create_proxy(lambda e: _handle_ju
 </script>
 
 <script>
-if ('serviceWorker' in navigator)
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      // 等 SW 就緒後詢問版號
+      const sw = reg.active || reg.waiting || reg.installing;
+      if (sw) {
+        sw.postMessage('GET_VERSION');
+      }
+    });
+    // 接收 SW 回傳的版號
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data?.type === 'VERSION') {
+        const v = e.data.version;
+        const tag = document.getElementById('version-tag');
+        const splash = document.getElementById('splash-version');
+        if (tag) tag.textContent = `Version: ${v}（質數挑戰版）`;
+        if (splash) splash.textContent = `Version ${v}`;
+      }
+    });
+  });
+}
 </script>
 </body>
 </html>
