@@ -422,6 +422,9 @@ function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
   if (name === 'scores') setTimeout(renderScoresScreen, 50);
+  // 更新提示條只在 menu 畫面顯示
+  const bar = document.getElementById('update-bar');
+  if (bar) bar.style.display = (name === 'menu' && bar.dataset.hasUpdate) ? 'flex' : 'none';
 }
 
 function splashStart() {
@@ -1269,9 +1272,13 @@ if ('serviceWorker' in navigator) {
         const newSW = reg.installing;
         newSW.addEventListener('statechange', () => {
           if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-            // 有新版可用，顯示提示條
             const bar = document.getElementById('update-bar');
-            if (bar) bar.style.display = 'flex';
+            if (bar) {
+              bar.dataset.hasUpdate = '1';
+              // 只在 menu 畫面才顯示
+              const menuActive = document.getElementById('screen-menu').classList.contains('active');
+              if (menuActive) bar.style.display = 'flex';
+            }
           }
         });
       });
