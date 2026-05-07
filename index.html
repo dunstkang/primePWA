@@ -214,7 +214,11 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 .score-btn:hover { border-color:var(--gold); color:var(--gold); }
 
 /* 排行榜 */
-.scores-section { width:100%; margin-bottom:18px; }
+.scores-section {
+  width:100%; margin-bottom:14px;
+  background:var(--card-bg); border:1px solid var(--border);
+  border-radius:14px; padding:14px 16px;
+}
 .scores-section h3 {
   font-family:'Fredoka One',cursive; font-size:1rem;
   color:var(--gold); margin-bottom:8px; padding-left:4px;
@@ -334,7 +338,7 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
     <div style="font-family:'Fredoka One',cursive;color:var(--gold);font-size:1.1rem">🏆 成績記錄</div>
     <button class="back-btn" onclick="exportScores()" style="color:var(--gold);border-color:var(--gold)">📥 匯出</button>
   </div>
-  <div id="scores-content" style="width:100%"></div>
+  <div id="scores-content" style="width:100%;overflow-y:auto;padding-bottom:20px"></div>
 </div>
 
 <!-- GAME -->
@@ -512,18 +516,19 @@ function addScore(mode, entryJson) {
 function renderScoresScreen() {
   const scores = loadScores();
   const container = document.getElementById('scores-content');
+  if (!container) return;
   let html = '';
+  let hasAny = false;
 
   Object.entries(MODE_META).forEach(([mode, meta]) => {
     const rows = scores[mode] || [];
+    if (rows.length > 0) hasAny = true;
     html += `<div class="scores-section">
       <h3>${meta.label}</h3>
       <table class="scores-table">
         <tr>
           <th>名次</th><th>時間</th>
-          ${mode === 'judge' ? '<th>正確率</th>' : ''}
-          ${mode === 'pick'  ? '<th>失誤</th>'   : ''}
-          ${mode === 'seq' || mode === 'fill' ? '<th>失誤</th>' : ''}
+          ${mode === 'judge' ? '<th>正確率</th>' : '<th>失誤</th>'}
           <th>說明</th><th>日期</th>
         </tr>`;
     if (rows.length === 0) {
@@ -535,8 +540,7 @@ function renderScoresScreen() {
         html += `<tr class="rank-${i+1}">
           <td>${medals[i]}</td>
           <td>${r.time.toFixed(1)}s</td>
-          ${mode === 'judge' ? `<td>${acc}%</td>` : ''}
-          ${mode !== 'judge' ? `<td>${r.errors}次</td>` : ''}
+          ${mode === 'judge' ? `<td>${acc}%</td>` : `<td>${r.errors}次</td>`}
           <td style="font-size:0.78rem;color:var(--chalk-dim)">${r.label || ''}</td>
           <td style="font-size:0.75rem;color:var(--chalk-dim)">${r.date || ''}</td>
         </tr>`;
@@ -551,12 +555,16 @@ function renderScoresScreen() {
 function showScoreEntry(mode, entryJson, rankListJson) {
   const entry    = typeof entryJson    === 'string' ? JSON.parse(entryJson)    : entryJson;
   const rankList = typeof rankListJson === 'string' ? JSON.parse(rankListJson) : rankListJson;
-  // 在結算畫面下方插入本次排名提示
   const myRank = rankList.findIndex(r =>
     r.time === entry.time && r.date === entry.date) + 1;
-  const el = document.getElementById('score-entry-msg');
+
+  // judge 模式的 msg 在 judge-report 裡，其他在 complete-banner 裡
+  const el = mode === 'judge'
+    ? document.querySelector('#judge-report #score-entry-msg')
+    : document.querySelector('#complete-banner #score-entry-msg');
   if (!el) return;
-  if (myRank > 0) {
+
+  if (myRank > 0 && myRank <= MAX_RANK) {
     el.innerHTML = myRank <= 3
       ? `<span style="color:var(--gold)">🏆 本次成績排第 ${myRank} 名！</span>`
       : `<span style="color:var(--chalk-dim)">本次成績排第 ${myRank} 名</span>`;
