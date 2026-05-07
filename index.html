@@ -1130,7 +1130,9 @@ def _finish():
     if mode == 'judge':
         correct = state['correct']
         total   = state['total_q']
-        label   = f"難度：{{'easy':'簡單','mid':'中等','hard':'困難','hell':'地獄'}.get(state.get('diff','?'),'?')}"
+        diff_map = {'easy':'簡單','mid':'中等','hard':'困難','hell':'地獄'}
+        diff_name = diff_map.get(state.get('diff','?'),'?')
+        label   = f"難度：{diff_name}"
         entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'label':label,'date':now}
         rank_list = window.addScore('judge', entry)
         _show_judge_report()

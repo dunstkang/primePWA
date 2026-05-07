@@ -1,4 +1,4 @@
-const VERSION    = '2026.05.03-v1.9';       // ← 每次只改這一行
+const VERSION    = '2026.05.03-v2.0';       // ← 每次只改這一行
 const CACHE_NAME = `prime-pwa-${VERSION}`;
 
 self.addEventListener('message', (e) => {
