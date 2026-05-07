@@ -479,7 +479,8 @@ function saveScores(scores) {
   localStorage.setItem(SCORE_KEY, JSON.stringify(scores));
 }
 
-function addScore(mode, entry) {
+function addScore(mode, entryJson) {
+  const entry = typeof entryJson === 'string' ? JSON.parse(entryJson) : entryJson;
   // entry: { time, errors, correct, total, label, date }
   const scores = loadScores();
   if (!scores[mode]) scores[mode] = [];
@@ -505,7 +506,7 @@ function addScore(mode, entry) {
   // 只保留前 5 名
   scores[mode] = scores[mode].slice(0, MAX_RANK);
   saveScores(scores);
-  return scores[mode];
+  return JSON.stringify(scores[mode]);  // 回傳 JSON 字串，避免跨語言 proxy 問題
 }
 
 function renderScoresScreen() {
@@ -547,10 +548,12 @@ function renderScoresScreen() {
   container.innerHTML = html;
 }
 
-function showScoreEntry(mode, newEntry, rankList) {
+function showScoreEntry(mode, entryJson, rankListJson) {
+  const entry    = typeof entryJson    === 'string' ? JSON.parse(entryJson)    : entryJson;
+  const rankList = typeof rankListJson === 'string' ? JSON.parse(rankListJson) : rankListJson;
   // 在結算畫面下方插入本次排名提示
   const myRank = rankList.findIndex(r =>
-    r.time === newEntry.time && r.date === newEntry.date) + 1;
+    r.time === entry.time && r.date === entry.date) + 1;
   const el = document.getElementById('score-entry-msg');
   if (!el) return;
   if (myRank > 0) {
@@ -1134,11 +1137,11 @@ def _finish():
         diff_name = diff_map.get(state.get('diff','?'),'?')
         label   = f"難度：{diff_name}"
         entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'label':label,'date':now}
-        rank_list = window.addScore('judge', entry)
+        rank_json = str(window.addScore('judge', json.dumps(entry)))
         _show_judge_report()
         document.getElementById('complete-banner').style.display = 'none'
         document.getElementById('next-btn').style.display = ''
-        window.showScoreEntry('judge', entry, rank_list)
+        window.showScoreEntry('judge', json.dumps(entry), rank_json)
         return
 
     banner = document.getElementById('complete-banner')
@@ -1153,23 +1156,23 @@ def _finish():
         correct= total - err
         document.getElementById('complete-msg').innerText = f"完成 {total} 組質數辨識，{err_txt}　用時 {t:.1f} 秒"
         entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'label':label,'date':now}
-        rank_list = window.addScore('pick', entry)
+        rank_json = str(window.addScore('pick', json.dumps(entry)))
     elif mode == 'seq':
         total  = state['n']
         label  = f"{'4×4' if total==16 else '3×3'}"
         correct= total
         document.getElementById('complete-msg').innerText = f"答對全部 {total} 格，{err_txt}　用時 {t:.1f} 秒"
         entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'label':label,'date':now}
-        rank_list = window.addScore('seq', entry)
+        rank_json = str(window.addScore('seq', json.dumps(entry)))
     else:  # fill
         total  = state['blanks']
         label  = f"{total}格"
         correct= total
         document.getElementById('complete-msg').innerText = f"答對全部 {total} 格，{err_txt}　用時 {t:.1f} 秒"
         entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'label':label,'date':now}
-        rank_list = window.addScore('fill', entry)
+        rank_json = str(window.addScore('fill', json.dumps(entry)))
 
-    window.showScoreEntry(mode, entry, rank_list)
+    window.showScoreEntry(mode, json.dumps(entry), rank_json)
     document.getElementById('next-btn').style.display = ''
 
 document.getElementById('start-btn').onclick = create_proxy(start_game)
