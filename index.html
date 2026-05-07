@@ -203,7 +203,36 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 .report-row .rresult { font-size:1.3rem; min-width:28px; text-align:right; }
 .report-row.r-correct { border-color:#2a5a3e; }
 .report-row.r-wrong   { border-color:#5a2a2a; background:#2a1a1a; }
-/* 更新提示條 */
+/* 查看成績按鈕 */
+.score-btn {
+  width:100%; padding:12px; margin-top:10px;
+  background:transparent; color:var(--chalk-dim);
+  border:1px solid var(--border); border-radius:12px;
+  font-size:1rem; font-family:'Noto Sans TC',sans-serif;
+  cursor:pointer; transition:all 0.15s;
+}
+.score-btn:hover { border-color:var(--gold); color:var(--gold); }
+
+/* 排行榜 */
+.scores-section { width:100%; margin-bottom:18px; }
+.scores-section h3 {
+  font-family:'Fredoka One',cursive; font-size:1rem;
+  color:var(--gold); margin-bottom:8px; padding-left:4px;
+  border-left:3px solid var(--gold); padding-left:10px;
+}
+.scores-table { width:100%; border-collapse:collapse; }
+.scores-table th {
+  font-size:0.75rem; color:var(--chalk-dim); font-weight:400;
+  text-align:left; padding:4px 8px; border-bottom:1px solid var(--border);
+}
+.scores-table td {
+  padding:8px 8px; font-size:0.9rem; border-bottom:1px solid #1e3a2a;
+}
+.scores-table tr:first-child td { font-size:1rem; }
+.rank-1 td:first-child { color:var(--gold); }
+.rank-2 td:first-child { color:#c0c0c0; }
+.rank-3 td:first-child { color:#cd7f32; }
+.scores-empty { color:var(--chalk-dim); font-size:0.85rem; padding:8px; }
 #update-bar {
   display:none; position:fixed; bottom:0; left:0; right:0; z-index:9999;
   background:#2a5a3e; border-top:2px solid var(--gold);
@@ -295,6 +324,17 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
     </div>
   </div>
   <button class="start-btn" id="start-btn">開始挑戰 ▶</button>
+  <button class="score-btn" id="score-board-btn" onclick="showScreen('scores')">🏆 查看成績記錄</button>
+</div>
+
+<!-- SCORES -->
+<div class="screen" id="screen-scores">
+  <div class="game-header">
+    <button class="back-btn" onclick="showScreen('menu')">◀ 返回</button>
+    <div style="font-family:'Fredoka One',cursive;color:var(--gold);font-size:1.1rem">🏆 成績記錄</div>
+    <button class="back-btn" onclick="exportScores()" style="color:var(--gold);border-color:var(--gold)">📥 匯出</button>
+  </div>
+  <div id="scores-content" style="width:100%"></div>
 </div>
 
 <!-- GAME -->
@@ -336,6 +376,7 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 
   <!-- ④ 質數判斷：結算報告 -->
   <div id="judge-report" style="display:none; width:100%">
+    <div id="score-entry-msg" style="display:none;margin-bottom:8px;font-size:0.95rem;text-align:center"></div>
     <div class="report-header" id="report-header"></div>
     <div class="report-list" id="report-list"></div>
   </div>
@@ -353,6 +394,7 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
   <div class="complete-banner" id="complete-banner">
     <div class="big" id="complete-icon">🎉 完成！</div>
     <p id="complete-msg"></p>
+    <div id="score-entry-msg" style="display:none;margin-top:8px;font-size:0.95rem"></div>
   </div>
 </div>
 
@@ -374,6 +416,7 @@ document.querySelectorAll('.opt-btn').forEach(btn => {
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
+  if (name === 'scores') renderScoresScreen();
 }
 
 function splashStart() {
@@ -414,6 +457,119 @@ function sfx_wrong() { _playTone(220, 'sawtooth', 0.25, 0.3, 110); }
 function sfx_finish() {
   const notes = [523, 659, 784, 1047];
   notes.forEach((f, i) => setTimeout(() => _playTone(f, 'sine', 0.22, 0.35), i * 120));
+}
+
+// ── 排行榜 (localStorage) ────────────────────────
+const SCORE_KEY = 'primePWA_scores';
+const MAX_RANK  = 5;
+
+// 模式設定
+const MODE_META = {
+  seq:   { label:'① 循序點擊', sortKey:'time' },
+  fill:  { label:'② 填入數字', sortKey:'time' },
+  pick:  { label:'③ 找出質數', sortKey:'time_errors' },
+  judge: { label:'④ 質數判斷', sortKey:'time_acc' },
+};
+
+function loadScores() {
+  try { return JSON.parse(localStorage.getItem(SCORE_KEY) || '{}'); }
+  catch { return {}; }
+}
+function saveScores(scores) {
+  localStorage.setItem(SCORE_KEY, JSON.stringify(scores));
+}
+
+function addScore(mode, entry) {
+  // entry: { time, errors, correct, total, label, date }
+  const scores = loadScores();
+  if (!scores[mode]) scores[mode] = [];
+  scores[mode].push(entry);
+
+  // 排序
+  const meta = MODE_META[mode];
+  scores[mode].sort((a, b) => {
+    if (meta.sortKey === 'time') return a.time - b.time;
+    if (meta.sortKey === 'time_errors') {
+      if (a.time !== b.time) return a.time - b.time;
+      return a.errors - b.errors;
+    }
+    if (meta.sortKey === 'time_acc') {
+      const accA = a.total ? a.correct / a.total : 0;
+      const accB = b.total ? b.correct / b.total : 0;
+      if (accB !== accA) return accB - accA; // 正確率高優先
+      return a.time - b.time;
+    }
+    return a.time - b.time;
+  });
+
+  // 只保留前 5 名
+  scores[mode] = scores[mode].slice(0, MAX_RANK);
+  saveScores(scores);
+  return scores[mode];
+}
+
+function renderScoresScreen() {
+  const scores = loadScores();
+  const container = document.getElementById('scores-content');
+  let html = '';
+
+  Object.entries(MODE_META).forEach(([mode, meta]) => {
+    const rows = scores[mode] || [];
+    html += `<div class="scores-section">
+      <h3>${meta.label}</h3>
+      <table class="scores-table">
+        <tr>
+          <th>名次</th><th>時間</th>
+          ${mode === 'judge' ? '<th>正確率</th>' : ''}
+          ${mode === 'pick'  ? '<th>失誤</th>'   : ''}
+          ${mode === 'seq' || mode === 'fill' ? '<th>失誤</th>' : ''}
+          <th>說明</th><th>日期</th>
+        </tr>`;
+    if (rows.length === 0) {
+      html += `<tr><td colspan="5" class="scores-empty">尚無記錄</td></tr>`;
+    } else {
+      rows.forEach((r, i) => {
+        const medals = ['🥇','🥈','🥉','4','5'];
+        const acc = r.total ? Math.round(r.correct / r.total * 100) : '-';
+        html += `<tr class="rank-${i+1}">
+          <td>${medals[i]}</td>
+          <td>${r.time.toFixed(1)}s</td>
+          ${mode === 'judge' ? `<td>${acc}%</td>` : ''}
+          ${mode !== 'judge' ? `<td>${r.errors}次</td>` : ''}
+          <td style="font-size:0.78rem;color:var(--chalk-dim)">${r.label || ''}</td>
+          <td style="font-size:0.75rem;color:var(--chalk-dim)">${r.date || ''}</td>
+        </tr>`;
+      });
+    }
+    html += `</table></div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function showScoreEntry(mode, newEntry, rankList) {
+  // 在結算畫面下方插入本次排名提示
+  const myRank = rankList.findIndex(r =>
+    r.time === newEntry.time && r.date === newEntry.date) + 1;
+  const el = document.getElementById('score-entry-msg');
+  if (!el) return;
+  if (myRank > 0) {
+    el.innerHTML = myRank <= 3
+      ? `<span style="color:var(--gold)">🏆 本次成績排第 ${myRank} 名！</span>`
+      : `<span style="color:var(--chalk-dim)">本次成績排第 ${myRank} 名</span>`;
+  } else {
+    el.innerHTML = `<span style="color:var(--chalk-dim)">本次未進前 ${MAX_RANK} 名</span>`;
+  }
+  el.style.display = 'block';
+}
+
+function exportScores() {
+  const scores = loadScores();
+  const blob = new Blob([JSON.stringify(scores, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'primePWA_scores.json';
+  a.click();
 }
 
 // ── 背景音樂 ──────────────────────────────────────
@@ -964,26 +1120,54 @@ def _finish():
     _render_timer()
     window.sfx_finish()
 
-    if state['mode'] == 'judge':
+    import js as _js
+    from datetime import datetime
+    t   = state['elapsed']
+    err = state['errors']
+    now = datetime.now().strftime('%m/%d %H:%M')
+    mode = state['mode']
+
+    if mode == 'judge':
+        correct = state['correct']
+        total   = state['total_q']
+        label   = f"難度：{{'easy':'簡單','mid':'中等','hard':'困難','hell':'地獄'}.get(state.get('diff','?'),'?')}"
+        entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'label':label,'date':now}
+        rank_list = window.addScore('judge', entry)
         _show_judge_report()
         document.getElementById('complete-banner').style.display = 'none'
         document.getElementById('next-btn').style.display = ''
+        window.showScoreEntry('judge', entry, rank_list)
         return
 
     banner = document.getElementById('complete-banner')
     banner.style.display = ''
-    err = state['errors']
-    t = state['elapsed']
-    document.getElementById('complete-icon').innerText = '🏆 完美！零失誤！' if err == 0 else '🎉 完成！'
+    document.getElementById('score-entry-msg').style.display = 'none'
     err_txt = '完全沒有失誤！' if err == 0 else f'共失誤 {err} 次'
-    if state['mode'] == 'pick':
-        total = state['rounds']
-        document.getElementById('complete-msg').innerText = \
-            f"完成 {total} 組質數辨識，{err_txt}　用時 {t:.1f} 秒"
-    else:
-        total = state['n'] if state['mode'] == 'seq' else state['blanks']
-        document.getElementById('complete-msg').innerText = \
-            f"答對全部 {total} 格，{err_txt}　用時 {t:.1f} 秒"
+    document.getElementById('complete-icon').innerText = '🏆 完美！零失誤！' if err == 0 else '🎉 完成！'
+
+    if mode == 'pick':
+        total  = state['rounds']
+        label  = f"{total}組"
+        correct= total - err
+        document.getElementById('complete-msg').innerText = f"完成 {total} 組質數辨識，{err_txt}　用時 {t:.1f} 秒"
+        entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'label':label,'date':now}
+        rank_list = window.addScore('pick', entry)
+    elif mode == 'seq':
+        total  = state['n']
+        label  = f"{'4×4' if total==16 else '3×3'}"
+        correct= total
+        document.getElementById('complete-msg').innerText = f"答對全部 {total} 格，{err_txt}　用時 {t:.1f} 秒"
+        entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'label':label,'date':now}
+        rank_list = window.addScore('seq', entry)
+    else:  # fill
+        total  = state['blanks']
+        label  = f"{total}格"
+        correct= total
+        document.getElementById('complete-msg').innerText = f"答對全部 {total} 格，{err_txt}　用時 {t:.1f} 秒"
+        entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'label':label,'date':now}
+        rank_list = window.addScore('fill', entry)
+
+    window.showScoreEntry(mode, entry, rank_list)
     document.getElementById('next-btn').style.display = ''
 
 document.getElementById('start-btn').onclick = create_proxy(start_game)
