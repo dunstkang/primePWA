@@ -420,7 +420,7 @@ document.querySelectorAll('.opt-btn').forEach(btn => {
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
-  if (name === 'scores') renderScoresScreen();
+  if (name === 'scores') setTimeout(renderScoresScreen, 50);
 }
 
 function splashStart() {
@@ -558,19 +558,24 @@ function showScoreEntry(mode, entryJson, rankListJson) {
   const myRank = rankList.findIndex(r =>
     r.time === entry.time && r.date === entry.date) + 1;
 
-  // judge 模式的 msg 在 judge-report 裡，其他在 complete-banner 裡
-  const el = mode === 'judge'
-    ? document.querySelector('#judge-report #score-entry-msg')
-    : document.querySelector('#complete-banner #score-entry-msg');
+  // 找所有 score-entry-msg，選可見的那個
+  const els = document.querySelectorAll('#score-entry-msg');
+  let el = null;
+  for (let i = 0; i < els.length; i++) {
+    const parent = els[i].closest('#complete-banner, #judge-report');
+    if (mode === 'judge' && parent && parent.id === 'judge-report') { el = els[i]; break; }
+    if (mode !== 'judge' && parent && parent.id === 'complete-banner') { el = els[i]; break; }
+  }
+  if (!el) el = els[0]; // fallback
   if (!el) return;
 
-  if (myRank > 0 && myRank <= MAX_RANK) {
-    el.innerHTML = myRank <= 3
-      ? `<span style="color:var(--gold)">🏆 本次成績排第 ${myRank} 名！</span>`
-      : `<span style="color:var(--chalk-dim)">本次成績排第 ${myRank} 名</span>`;
-  } else {
-    el.innerHTML = `<span style="color:var(--chalk-dim)">本次未進前 ${MAX_RANK} 名</span>`;
-  }
+  const msg = myRank > 0 && myRank <= MAX_RANK
+    ? (myRank <= 3
+        ? `<span style="color:var(--gold)">🏆 本次成績排第 ${myRank} 名！</span>`
+        : `<span style="color:var(--chalk-dim)">本次成績排第 ${myRank} 名</span>`)
+    : `<span style="color:var(--chalk-dim)">本次未進前 ${MAX_RANK} 名</span>`;
+
+  el.innerHTML = msg;
   el.style.display = 'block';
 }
 
@@ -1154,7 +1159,6 @@ def _finish():
 
     banner = document.getElementById('complete-banner')
     banner.style.display = ''
-    document.getElementById('score-entry-msg').style.display = 'none'
     err_txt = '完全沒有失誤！' if err == 0 else f'共失誤 {err} 次'
     document.getElementById('complete-icon').innerText = '🏆 完美！零失誤！' if err == 0 else '🎉 完成！'
 
