@@ -467,12 +467,20 @@ function sfx_finish() {
 const SCORE_KEY = 'primePWA_scores';
 const MAX_RANK  = 5;
 
-// 模式設定
+// 每個子模式獨立排行
 const MODE_META = {
-  seq:   { label:'① 循序點擊', sortKey:'time' },
-  fill:  { label:'② 填入數字', sortKey:'time' },
-  pick:  { label:'③ 找出質數', sortKey:'time_errors' },
-  judge: { label:'④ 質數判斷', sortKey:'time_acc' },
+  seq_16:      { label:'① 循序點擊　4×4', sortKey:'time' },
+  seq_9:       { label:'① 循序點擊　3×3', sortKey:'time' },
+  fill_1:      { label:'② 填入數字　1格', sortKey:'time' },
+  fill_3:      { label:'② 填入數字　3格', sortKey:'time' },
+  fill_5:      { label:'② 填入數字　5格', sortKey:'time' },
+  pick_5:      { label:'③ 找出質數　5組', sortKey:'time_errors' },
+  pick_10:     { label:'③ 找出質數　10組', sortKey:'time_errors' },
+  pick_3:      { label:'③ 找出質數　3組', sortKey:'time_errors' },
+  judge_easy:  { label:'④ 質數判斷　簡單', sortKey:'time_acc' },
+  judge_mid:   { label:'④ 質數判斷　中等', sortKey:'time_acc' },
+  judge_hard:  { label:'④ 質數判斷　困難', sortKey:'time_acc' },
+  judge_hell:  { label:'④ 質數判斷　地獄', sortKey:'time_acc' },
 };
 
 function loadScores() {
@@ -485,13 +493,16 @@ function saveScores(scores) {
 
 function addScore(mode, entryJson) {
   const entry = typeof entryJson === 'string' ? JSON.parse(entryJson) : entryJson;
-  // entry: { time, errors, correct, total, label, date }
   const scores = loadScores();
   if (!scores[mode]) scores[mode] = [];
   scores[mode].push(entry);
 
-  // 排序
-  const meta = MODE_META[mode];
+  // 根據 key 前綴決定排序方式
+  const meta = MODE_META[mode] || (
+    mode.startsWith('judge') ? { sortKey:'time_acc'    } :
+    mode.startsWith('pick')  ? { sortKey:'time_errors' } :
+                               { sortKey:'time'        }
+  );
   scores[mode].sort((a, b) => {
     if (meta.sortKey === 'time') return a.time - b.time;
     if (meta.sortKey === 'time_errors') {
@@ -501,52 +512,66 @@ function addScore(mode, entryJson) {
     if (meta.sortKey === 'time_acc') {
       const accA = a.total ? a.correct / a.total : 0;
       const accB = b.total ? b.correct / b.total : 0;
-      if (accB !== accA) return accB - accA; // 正確率高優先
+      if (accB !== accA) return accB - accA;
       return a.time - b.time;
     }
     return a.time - b.time;
   });
-
-  // 只保留前 5 名
   scores[mode] = scores[mode].slice(0, MAX_RANK);
   saveScores(scores);
-  return JSON.stringify(scores[mode]);  // 回傳 JSON 字串，避免跨語言 proxy 問題
+  return JSON.stringify(scores[mode]);
 }
 
 function renderScoresScreen() {
   const scores = loadScores();
   const container = document.getElementById('scores-content');
   if (!container) return;
-  let html = '';
-  let hasAny = false;
 
-  Object.entries(MODE_META).forEach(([mode, meta]) => {
-    const rows = scores[mode] || [];
-    if (rows.length > 0) hasAny = true;
-    html += `<div class="scores-section">
-      <h3>${meta.label}</h3>
-      <table class="scores-table">
-        <tr>
+  const groups = [
+    { prefix:'seq',   title:'① 循序點擊', isJudge:false,
+      subLabels:{ seq_16:'4×4（16格）', seq_9:'3×3（9格）' } },
+    { prefix:'fill',  title:'② 填入數字', isJudge:false,
+      subLabels:{ fill_1:'1 格', fill_3:'3 格', fill_5:'5 格' } },
+    { prefix:'pick',  title:'③ 找出質數', isJudge:false,
+      subLabels:{ pick_3:'3 組', pick_5:'5 組', pick_10:'10 組' } },
+    { prefix:'judge', title:'④ 質數判斷', isJudge:true,
+      subLabels:{ judge_easy:'簡單（2~100）', judge_mid:'中等（50~150）',
+                  judge_hard:'困難（100~200）', judge_hell:'地獄（200~500）' } },
+  ];
+
+  let html = '';
+  groups.forEach(g => {
+    // 取出這個群組有資料的 key，按預定順序排列
+    const orderedKeys = Object.keys(g.subLabels);
+    const activeKeys  = orderedKeys.filter(k => scores[k] && scores[k].length > 0);
+
+    if (activeKeys.length === 0) {
+      html += `<div class="scores-section"><h3>${g.title}</h3>
+        <div class="scores-empty" style="padding:6px 0">尚無記錄</div></div>`;
+      return;
+    }
+    activeKeys.forEach(key => {
+      const subLabel = g.subLabels[key];
+      const rows = scores[key];
+      html += `<div class="scores-section">
+        <h3>${g.title} <span style="font-size:0.8rem;color:var(--chalk-dim);font-family:'Noto Sans TC'">${subLabel}</span></h3>
+        <table class="scores-table"><tr>
           <th>名次</th><th>時間</th>
-          ${mode === 'judge' ? '<th>正確率</th>' : '<th>失誤</th>'}
-          <th>說明</th><th>日期</th>
+          ${g.isJudge ? '<th>正確率</th>' : '<th>失誤</th>'}
+          <th>日期</th>
         </tr>`;
-    if (rows.length === 0) {
-      html += `<tr><td colspan="5" class="scores-empty">尚無記錄</td></tr>`;
-    } else {
       rows.forEach((r, i) => {
         const medals = ['🥇','🥈','🥉','4','5'];
         const acc = r.total ? Math.round(r.correct / r.total * 100) : '-';
         html += `<tr class="rank-${i+1}">
           <td>${medals[i]}</td>
           <td>${r.time.toFixed(1)}s</td>
-          ${mode === 'judge' ? `<td>${acc}%</td>` : `<td>${r.errors}次</td>`}
-          <td style="font-size:0.78rem;color:var(--chalk-dim)">${r.label || ''}</td>
-          <td style="font-size:0.75rem;color:var(--chalk-dim)">${r.date || ''}</td>
+          ${g.isJudge ? `<td>${acc}%</td>` : `<td>${r.errors}次</td>`}
+          <td style="font-size:0.75rem;color:var(--chalk-dim)">${r.date||''}</td>
         </tr>`;
       });
-    }
-    html += `</table></div>`;
+      html += `</table></div>`;
+    });
   });
 
   container.innerHTML = html;
@@ -1146,11 +1171,10 @@ def _finish():
     if mode == 'judge':
         correct = state['correct']
         total   = state['total_q']
-        diff_map = {'easy':'簡單','mid':'中等','hard':'困難','hell':'地獄'}
-        diff_name = diff_map.get(state.get('diff','?'),'?')
-        label   = f"難度：{diff_name}"
-        entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'label':label,'date':now}
-        rank_json = str(window.addScore('judge', json.dumps(entry)))
+        diff    = state.get('diff', 'easy')
+        score_key = f'judge_{diff}'
+        entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'date':now}
+        rank_json = str(window.addScore(score_key, json.dumps(entry)))
         _show_judge_report()
         document.getElementById('complete-banner').style.display = 'none'
         document.getElementById('next-btn').style.display = ''
@@ -1163,27 +1187,29 @@ def _finish():
     document.getElementById('complete-icon').innerText = '🏆 完美！零失誤！' if err == 0 else '🎉 完成！'
 
     if mode == 'pick':
-        total  = state['rounds']
-        label  = f"{total}組"
-        correct= total - err
+        total     = state['rounds']
+        correct   = total - err
+        score_key = f'pick_{total}'
         document.getElementById('complete-msg').innerText = f"完成 {total} 組質數辨識，{err_txt}　用時 {t:.1f} 秒"
-        entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'label':label,'date':now}
-        rank_json = str(window.addScore('pick', json.dumps(entry)))
+        entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'date':now}
+        rank_json = str(window.addScore(score_key, json.dumps(entry)))
     elif mode == 'seq':
-        total  = state['n']
-        label  = f"{'4×4' if total==16 else '3×3'}"
-        correct= total
-        document.getElementById('complete-msg').innerText = f"答對全部 {total} 格，{err_txt}　用時 {t:.1f} 秒"
-        entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'label':label,'date':now}
-        rank_json = str(window.addScore('seq', json.dumps(entry)))
+        total     = state['n']
+        correct   = total
+        score_key = f'seq_{total}'
+        dim_label = '4×4' if total == 16 else '3×3'
+        document.getElementById('complete-msg').innerText = f"答對全部 {total} 格（{dim_label}），{err_txt}　用時 {t:.1f} 秒"
+        entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'date':now}
+        rank_json = str(window.addScore(score_key, json.dumps(entry)))
     else:  # fill
-        total  = state['blanks']
-        label  = f"{total}格"
-        correct= total
+        total     = state['blanks']
+        correct   = total
+        score_key = f'fill_{total}'
         document.getElementById('complete-msg').innerText = f"答對全部 {total} 格，{err_txt}　用時 {t:.1f} 秒"
-        entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'label':label,'date':now}
-        rank_json = str(window.addScore('fill', json.dumps(entry)))
+        entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'date':now}
+        rank_json = str(window.addScore(score_key, json.dumps(entry)))
 
+    # 先顯示排名，再顯示下一題按鈕
     window.showScoreEntry(mode, json.dumps(entry), rank_json)
     document.getElementById('next-btn').style.display = ''
 
