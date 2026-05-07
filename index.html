@@ -628,8 +628,10 @@ function getGameCfg() {
 <script type="py">
 from pyscript import document, window
 from pyodide.ffi import create_proxy
+from datetime import datetime
 import random
 import time
+import json
 
 PRIMES = [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97]
 # 1~100 的合數（排除 1）
@@ -1123,8 +1125,6 @@ def _finish():
     _render_timer()
     window.sfx_finish()
 
-    import js as _js
-    from datetime import datetime
     t   = state['elapsed']
     err = state['errors']
     now = datetime.now().strftime('%m/%d %H:%M')
