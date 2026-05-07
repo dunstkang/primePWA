@@ -1220,6 +1220,7 @@ def _finish():
     document.getElementById('complete-icon').innerText = '🏆 完美！零失誤！' if err == 0 else '🎉 完成！'
 
     rank_json = '[]'
+    entry = None
     try:
         if mode == 'pick':
             total     = state['rounds']
@@ -1243,10 +1244,10 @@ def _finish():
             document.getElementById('complete-msg').innerText = f"答對全部 {total} 格，{err_txt}　用時 {t:.1f} 秒"
             entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'date':now}
             rank_json = str(window.addScore(score_key, json.dumps(entry)))
-        window.showScoreEntry(mode, json.dumps(entry), rank_json)
+        if entry:
+            window.showScoreEntry(mode, json.dumps(entry), rank_json)
     except Exception as ex:
-        print(f'_finish score error: {ex}')
-        document.getElementById('complete-msg').innerText = f"{err_txt}　用時 {t:.1f} 秒"
+        document.getElementById('complete-msg').innerText += f'\n⚠️ 成績記錄錯誤: {ex}'
 
     document.getElementById('next-btn').style.display = ''
 
