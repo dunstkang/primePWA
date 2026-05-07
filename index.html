@@ -1215,7 +1215,7 @@ def _finish():
         return
 
     banner = document.getElementById('complete-banner')
-    banner.style.display = ''
+    banner.style.display = 'block'
     err_txt = '完全沒有失誤！' if err == 0 else f'共失誤 {err} 次'
     document.getElementById('complete-icon').innerText = '🏆 完美！零失誤！' if err == 0 else '🎉 完成！'
 
