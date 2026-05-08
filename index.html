@@ -380,8 +380,9 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 
   <!-- ④ 質數判斷：結算報告 -->
   <div id="judge-report" style="display:none; width:100%">
-    <div id="score-entry-msg" style="display:none;margin-bottom:8px;font-size:0.95rem;text-align:center"></div>
+    <div id="judge-score-entry-msg" style="display:none;margin-bottom:8px;font-size:0.95rem;text-align:center"></div>
     <div class="report-header" id="report-header"></div>
+    <div id="judge-inline-scoreboard" style="display:none; margin-top:14px"></div>
     <div class="report-list" id="report-list"></div>
   </div>
 
@@ -588,39 +589,36 @@ function showScoreEntry(mode, entryJson, rankListJson) {
     r.time === entry.time && r.date === entry.date) + 1;
 
   // 排名訊息
-  const els = document.querySelectorAll('#score-entry-msg');
-  let el = null;
-  for (let i = 0; i < els.length; i++) {
-    const parent = els[i].closest('#complete-banner, #judge-report');
-    if (mode === 'judge' && parent && parent.id === 'judge-report') { el = els[i]; break; }
-    if (mode !== 'judge' && parent && parent.id === 'complete-banner') { el = els[i]; break; }
-  }
-  if (!el && els.length > 0) el = els[0];
-  if (el) {
-    const msg = myRank > 0 && myRank <= MAX_RANK
+  const msgEl = isJudge
+    ? document.getElementById('judge-score-entry-msg')
+    : document.getElementById('score-entry-msg');
+
+  if (msgEl) {
+    msgEl.innerHTML = myRank > 0 && myRank <= MAX_RANK
       ? (myRank <= 3
           ? `<span style="color:var(--gold)">🏆 本次成績排第 ${myRank} 名！</span>`
           : `<span style="color:var(--chalk-dim)">本次成績排第 ${myRank} 名</span>`)
       : `<span style="color:var(--chalk-dim)">本次未進前 ${MAX_RANK} 名</span>`;
-    el.innerHTML = msg;
-    el.style.display = 'block';
+    msgEl.style.display = 'block';
   }
 
-  // 當場 inline 排行榜（只在 complete-banner 裡顯示，judge 有自己的 report）
-  if (mode !== 'judge' && rankList.length > 0) {
-    const board = document.getElementById('inline-scoreboard');
+  // inline 排行榜
+  const board = isJudge
+    ? document.getElementById('judge-inline-scoreboard')
+    : document.getElementById('inline-scoreboard');
     if (board) {
-      const isJudge = false;
+      const isJudge = mode === 'judge';
       const medals = ['🥇','🥈','🥉','4','5'];
-      let html = `<div style="font-size:0.8rem;color:var(--chalk-dim);margin-bottom:6px">── 本項排行榜 ──</div>
+      let html = `<div style="font-size:0.8rem;color:var(--chalk-dim);margin-bottom:6px;text-align:center">── 本項排行榜 ──</div>
         <table class="scores-table" style="width:100%">
-        <tr><th>名次</th><th>時間</th><th>失誤</th><th>日期</th></tr>`;
+        <tr><th>名次</th><th>時間</th>${isJudge ? '<th>正確率</th>' : '<th>失誤</th>'}<th>日期</th></tr>`;
       rankList.forEach((r, i) => {
         const isMe = r.time === entry.time && r.date === entry.date;
+        const acc = r.total ? Math.round(r.correct / r.total * 100) : '-';
         html += `<tr class="rank-${i+1}" style="${isMe ? 'background:rgba(240,192,64,0.1)' : ''}">
           <td>${medals[i]}</td>
           <td>${r.time.toFixed(1)}s</td>
-          <td>${r.errors}次</td>
+          ${isJudge ? `<td>${acc}%</td>` : `<td>${r.errors}次</td>`}
           <td style="font-size:0.75rem;color:var(--chalk-dim)">${r.date||''}</td>
         </tr>`;
       });
@@ -628,7 +626,6 @@ function showScoreEntry(mode, entryJson, rankListJson) {
       board.innerHTML = html;
       board.style.display = 'block';
     }
-  }
 }
 
 function exportScores() {
@@ -673,6 +670,13 @@ function toggleSfx() {
     btn.className = 'audio-btn off';
     btn.innerHTML = '<span class="icon">🔕</span> 音效';
   }
+}
+
+function recordAndShow(mode, scoreKey, time, errors, correct, total, date) {
+  // 全部在 JS 端處理，避免 PyScript 字串轉換問題
+  const entry = {time: Math.round(time*100)/100, errors, correct, total, date};
+  const rank_json = addScore(scoreKey, JSON.stringify(entry));
+  showScoreEntry(mode, JSON.stringify(entry), rank_json);
 }
 
 function getSelectedVal(group) {
@@ -1198,20 +1202,17 @@ def _finish():
     mode = state['mode']
 
     if mode == 'judge':
-        diff    = state.get('diff', 'easy')
+        diff      = state.get('diff', 'easy')
         score_key = f'judge_{diff}'
-        correct = state['correct']
-        total   = state['total_q']
-        entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'date':now}
-        try:
-            rank_json = str(window.addScore(score_key, json.dumps(entry)))
-        except Exception as ex:
-            print(f'judge score error: {ex}')
-            rank_json = '[]'
+        correct   = state['correct']
+        total     = state['total_q']
         _show_judge_report()
         document.getElementById('complete-banner').style.display = 'none'
         document.getElementById('next-btn').style.display = ''
-        window.showScoreEntry('judge', json.dumps(entry), rank_json)
+        try:
+            window.recordAndShow('judge', score_key, t, err, correct, total, now)
+        except Exception as ex:
+            print(f'judge score error: {ex}')
         return
 
     banner = document.getElementById('complete-banner')
@@ -1227,27 +1228,21 @@ def _finish():
             correct   = total - err
             score_key = f'pick_{total}'
             document.getElementById('complete-msg').innerText = f"完成 {total} 組質數辨識，{err_txt}　用時 {t:.1f} 秒"
-            entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'date':now}
-            rank_json = str(window.addScore(score_key, json.dumps(entry)))
         elif mode == 'seq':
             total     = state['n']
             correct   = total
             score_key = f'seq_{total}'
             dim_label = '4×4' if total == 16 else '3×3'
             document.getElementById('complete-msg').innerText = f"答對全部 {total} 格（{dim_label}），{err_txt}　用時 {t:.1f} 秒"
-            entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'date':now}
-            rank_json = str(window.addScore(score_key, json.dumps(entry)))
         else:  # fill
             total     = state['blanks']
             correct   = total
             score_key = f'fill_{total}'
             document.getElementById('complete-msg').innerText = f"答對全部 {total} 格，{err_txt}　用時 {t:.1f} 秒"
-            entry = {'time':round(t,2),'errors':err,'correct':correct,'total':total,'date':now}
-            rank_json = str(window.addScore(score_key, json.dumps(entry)))
-        if entry:
-            window.showScoreEntry(mode, json.dumps(entry), rank_json)
+        # 全部傳純數值給 JS 端處理
+        window.recordAndShow(mode, score_key, t, err, correct, total, now)
     except Exception as ex:
-        document.getElementById('complete-msg').innerText += f'\n⚠️ 成績記錄錯誤: {ex}'
+        document.getElementById('complete-msg').innerText += f'\n⚠️ 錯誤: {ex}'
 
     document.getElementById('next-btn').style.display = ''
 
