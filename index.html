@@ -585,8 +585,9 @@ function renderScoresScreen() {
 function showScoreEntry(mode, entryJson, rankListJson) {
   const entry    = typeof entryJson    === 'string' ? JSON.parse(entryJson)    : entryJson;
   const rankList = typeof rankListJson === 'string' ? JSON.parse(rankListJson) : rankListJson;
-  const myRank = rankList.findIndex(r =>
-    r.time === entry.time && r.date === entry.date) + 1;
+  const isJudge  = (mode === 'judge');
+  const myRank   = rankList.findIndex(r => r.time === entry.time && r.date === entry.date) + 1;
+  console.log(`showScoreEntry: mode=${mode}, isJudge=${isJudge}, myRank=${myRank}, rankList.length=${rankList.length}`);
 
   // 排名訊息
   const msgEl = isJudge
@@ -673,10 +674,15 @@ function toggleSfx() {
 }
 
 function recordAndShow(mode, scoreKey, time, errors, correct, total, date) {
-  // 全部在 JS 端處理，避免 PyScript 字串轉換問題
+  console.log(`recordAndShow: mode=${mode}, scoreKey=${scoreKey}, time=${time}`);
   const entry = {time: Math.round(time*100)/100, errors, correct, total, date};
   const rank_json = addScore(scoreKey, JSON.stringify(entry));
-  showScoreEntry(mode, JSON.stringify(entry), rank_json);
+  console.log(`rank_json=${rank_json}`);
+  // setTimeout 確保 DOM 完全更新後再執行
+  setTimeout(() => {
+    console.log(`calling showScoreEntry, judge-score-entry-msg exists: ${!!document.getElementById('judge-score-entry-msg')}`);
+    showScoreEntry(mode, JSON.stringify(entry), rank_json);
+  }, 100);
 }
 
 function getSelectedVal(group) {
