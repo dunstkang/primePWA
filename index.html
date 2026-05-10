@@ -814,7 +814,8 @@ def start_game(*args):
         _timer_id = None
 
     cfg = get_cfg()
-    if not cfg['mode']: return  # 防呆 ──────────────────────────
+    if not cfg['mode']: return  # 防呆
+    if cfg['mode'] == 'maze': return  # maze 由 JS 端處理
     if cfg['mode'] == 'judge':
         diff_range = {'easy':(2,100), 'mid':(50,150), 'hard':(100,200), 'hell':(200,500)}
         lo, hi = diff_range[cfg['diff']]
