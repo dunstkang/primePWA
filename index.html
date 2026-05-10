@@ -237,7 +237,31 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 .rank-2 td:first-child { color:#c0c0c0; }
 .rank-3 td:first-child { color:#cd7f32; }
 .scores-empty { color:var(--chalk-dim); font-size:0.85rem; padding:8px; }
-#update-bar {
+/* ── 質數迷宮 ── */
+#maze-wrap { width:100%; margin-bottom:12px; position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--border); background:var(--card-bg); }
+#maze-wrap.scroll-mode { overflow:auto; border:none; background:transparent; }
+.maze-grid { display:inline-grid; gap:3px; padding:6px; background:var(--card-bg); border:1px solid var(--border); border-radius:14px; }
+#maze-wrap.pan-mode .maze-grid { position:absolute; border:none; border-radius:0; touch-action:none; cursor:grab; }
+#maze-wrap.pan-mode .maze-grid:active { cursor:grabbing; }
+#pan-hint { display:none; position:absolute; bottom:6px; right:6px; z-index:10; background:rgba(0,0,0,.6); color:var(--chalk-dim); font-size:.7rem; padding:4px 8px; border-radius:6px; pointer-events:none; }
+#maze-wrap.pan-mode #pan-hint { display:block; }
+.maze-cell { width:48px; height:48px; display:flex; align-items:center; justify-content:center; border-radius:8px; font-family:'Fredoka One',cursive; font-size:1.05rem; cursor:pointer; user-select:none; position:relative; transition:transform .1s,box-shadow .1s,background .2s; border:2px solid transparent; }
+.maze-cell.mz-start  { background:#0a2a4a; border-color:#4a9eff; color:#4a9eff; cursor:default; font-size:.9rem; }
+.maze-cell.mz-end    { background:#2a0a1a; border-color:#ff4757; color:#ff4757; cursor:default; font-size:.9rem; }
+.maze-cell.mz-visible { background:var(--card-bg); border-color:rgba(255,255,255,.7); color:var(--chalk); cursor:pointer; }
+.maze-cell.mz-visible:hover { transform:scale(1.08); border-color:#fff; box-shadow:0 2px 12px rgba(255,255,255,.2); }
+.maze-cell.mz-locked  { background:var(--card-bg); border-color:var(--border); color:var(--chalk); cursor:default; }
+.maze-cell.mz-correct { background:#0a2a1a; border-color:#3ddc84; color:#3ddc84; box-shadow:0 0 12px rgba(61,220,132,.35); cursor:default; animation:mz-pop .3s ease; }
+.maze-cell.mz-wrong   { background:#2a0a0a; border-color:#ff4757; color:#ff4757; animation:mz-shake .45s ease; }
+.maze-cell.mz-blast   { animation:mz-blast .35s ease forwards; }
+.mz-badge { position:absolute; top:-5px; right:-5px; font-size:.65rem; background:var(--bg); border-radius:50%; width:15px; height:15px; display:flex; align-items:center; justify-content:center; }
+@keyframes mz-pop   { 0%{transform:scale(.8);opacity:.5} 65%{transform:scale(1.12)} 100%{transform:scale(1);opacity:1} }
+@keyframes mz-shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-5px)} 40%{transform:translateX(5px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+@keyframes mz-blast { 0%{background:var(--card-bg);border-color:var(--border);color:var(--chalk);transform:scale(1)} 40%{background:#1a4a2a;border-color:#3ddc84;color:#3ddc84;transform:scale(1.2);box-shadow:0 0 18px rgba(61,220,132,.7)} 100%{background:#0a2a1a;border-color:#3ddc84;color:#3ddc84;transform:scale(1);box-shadow:0 0 10px rgba(61,220,132,.3)} }
+.maze-cell.mz-gameover { background:#0a1f14; border-color:rgba(61,220,132,.3); color:rgba(61,220,132,.45); cursor:default; }
+.complete-banner.gameover { background:linear-gradient(135deg,#2a0a0a,#1a0505) !important; border-color:#ff4757 !important; }
+.mz-heart-lost { animation:mz-hlost .4s ease forwards; display:inline-block; }
+@keyframes mz-hlost { 0%{transform:scale(1)} 30%{transform:scale(1.3)} 100%{transform:scale(.6);opacity:.3} }
   display:none; position:fixed; bottom:0; left:0; right:0; z-index:9999;
   background:#2a5a3e; border-top:2px solid var(--gold);
   padding:12px 20px; align-items:center; justify-content:space-between;
@@ -293,6 +317,7 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
       <button class="opt-btn" data-group="mode" data-val="fill">② 填入數字</button>
       <button class="opt-btn" data-group="mode" data-val="pick">③ 找出質數</button>
       <button class="opt-btn" data-group="mode" data-val="judge">④ 質數判斷</button>
+      <button class="opt-btn" data-group="mode" data-val="maze">⑤ 質數迷宮</button>
     </div>
   </div>
   <div class="menu-card" id="judge-opts" style="display:none">
@@ -327,6 +352,33 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
       <button class="opt-btn" data-group="blanks" data-val="5">5 格</button>
     </div>
   </div>
+  <!-- ⑤ 質數迷宮選項 -->
+  <div class="menu-card" id="maze-opts" style="display:none">
+    <h2>🗺 路徑模式</h2>
+    <div class="opt-row">
+      <button class="opt-btn selected" data-group="pathmode" data-val="simple">一條路<small>唯一路徑</small></button>
+      <button class="opt-btn" data-group="pathmode" data-val="branch">有分支<small>含死路</small></button>
+    </div>
+  </div>
+  <div class="menu-card" id="maze-size-opts" style="display:none">
+    <h2>🔲 迷宮大小</h2>
+    <div class="opt-row">
+      <button class="opt-btn selected" data-group="mazesize" data-val="4x6">小<small>4×6</small></button>
+      <button class="opt-btn" data-group="mazesize" data-val="6x8">中<small>6×8</small></button>
+      <button class="opt-btn" data-group="mazesize" data-val="8x10">大<small>8×10</small></button>
+      <button class="opt-btn" data-group="mazesize" data-val="10x12">特大<small>10×12</small></button>
+      <button class="opt-btn" data-group="mazesize" data-val="15x20">超大<small>15×20</small></button>
+    </div>
+  </div>
+  <div class="menu-card" id="maze-diff-opts" style="display:none">
+    <h2>⚡ 迷宮難度</h2>
+    <div class="opt-row">
+      <button class="opt-btn selected" data-group="mazediff" data-val="easy">簡單<small>1~100</small></button>
+      <button class="opt-btn" data-group="mazediff" data-val="mid">中等<small>1~150</small></button>
+      <button class="opt-btn" data-group="mazediff" data-val="hard">困難<small>100~200</small></button>
+      <button class="opt-btn" data-group="mazediff" data-val="hell">地獄<small>100~500</small></button>
+    </div>
+  </div>
   <button class="start-btn" id="start-btn">開始挑戰 ▶</button>
   <button class="score-btn" id="score-board-btn" onclick="showScreen('scores')">🏆 查看成績記錄</button>
 </div>
@@ -339,6 +391,39 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
     <button class="back-btn" onclick="exportScores()" style="color:var(--gold);border-color:var(--gold)">📥 匯出</button>
   </div>
   <div id="scores-content" style="width:100%;overflow-y:auto;padding-bottom:20px"></div>
+</div>
+
+<!-- ====== MAZE SCREEN ====== -->
+<div class="screen" id="screen-maze">
+  <div class="game-header">
+    <button class="back-btn" id="maze-back-btn">◀ 返回</button>
+    <div id="maze-lives-display" style="font-size:1.4rem;letter-spacing:3px"></div>
+  </div>
+  <div class="mode-label" id="maze-mode-label"></div>
+  <div id="maze-timer-display" style="font-family:'Fredoka One',cursive;font-size:1rem;color:var(--chalk-dim);margin-bottom:10px;letter-spacing:1px"></div>
+  <div class="hint-bar" style="margin-bottom:10px">
+    <span style="font-size:.8rem;color:var(--chalk-dim)">
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#4a9eff;margin-right:4px;vertical-align:middle"></span>S 起點
+      　<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ff4757;margin-right:4px;vertical-align:middle"></span>E 終點
+    </span>
+  </div>
+  <div id="maze-wrap">
+    <div class="maze-grid" id="maze-grid"></div>
+    <div id="pan-hint">拖曳移動地圖 ✋</div>
+  </div>
+  <div class="status-bar">
+    <div style="font-size:0.85rem;color:var(--chalk-dim)">找出質數，走到終點</div>
+    <div style="display:flex;gap:8px">
+      <button class="action-btn btn-retry" id="maze-retry-btn">🔄 再來一局</button>
+      <button class="action-btn btn-next" id="maze-next-btn" style="display:none">下一題 ▶</button>
+    </div>
+  </div>
+  <div class="complete-banner" id="maze-complete-banner" style="display:none">
+    <div class="big" id="maze-complete-icon">🎉</div>
+    <p id="maze-complete-msg"></p>
+    <div id="maze-score-entry-msg" style="display:none;margin-top:8px;font-size:0.95rem"></div>
+    <div id="maze-inline-scoreboard" style="display:none;margin-top:14px;text-align:left"></div>
+  </div>
 </div>
 
 <!-- GAME -->
@@ -415,7 +500,10 @@ document.querySelectorAll('.opt-btn').forEach(btn => {
       document.getElementById('fill-opts').style.display   = m === 'fill'  ? '' : 'none';
       document.getElementById('pick-opts').style.display   = m === 'pick'  ? '' : 'none';
       document.getElementById('judge-opts').style.display  = m === 'judge' ? '' : 'none';
-      document.getElementById('grid-opts').style.display   = (m === 'pick' || m === 'judge') ? 'none' : '';
+      document.getElementById('maze-opts').style.display      = m === 'maze'  ? '' : 'none';
+      document.getElementById('maze-size-opts').style.display = m === 'maze'  ? '' : 'none';
+      document.getElementById('maze-diff-opts').style.display = m === 'maze'  ? '' : 'none';
+      document.getElementById('grid-opts').style.display   = (m === 'pick' || m === 'judge' || m === 'maze') ? 'none' : '';
     }
   });
 });
@@ -1258,9 +1346,483 @@ document.getElementById('next-btn').onclick  = create_proxy(start_game)
 document.getElementById('back-btn').onclick  = create_proxy(lambda e: window.showScreen('menu'))
 document.getElementById('judge-yes').onclick = create_proxy(lambda e: _handle_judge(True))
 document.getElementById('judge-no').onclick  = create_proxy(lambda e: _handle_judge(False))
+
+# ── 質數迷宮 PyScript 部分 ──────────────────────────
+
+MZ_DIFF = {'easy':(1,100),'mid':(1,150),'hard':(100,200),'hell':(100,500)}
+mz_state = {}
+
+def mz_is_prime(n):
+    if n < 2: return False
+    if n == 2: return True
+    if n % 2 == 0: return False
+    i = 3
+    while i * i <= n:
+        if n % i == 0: return False
+        i += 2
+    return True
+
+def mz_num_pool(lo, hi):
+    primes, composites = [], []
+    for n in range(max(lo, 2), hi + 1):
+        if mz_is_prime(n): primes.append(n)
+        else: composites.append(n)
+    return primes, composites
+
+def mz_gen_path(rows, cols):
+    """Loop-Erased Random Walk，保證路徑不自相鄰"""
+    import random as _rnd
+    dirs = [(-1,0),(1,0),(0,-1),(0,1)]
+    def nbs(r,c): return [(r+dr,c+dc) for dr,dc in dirs if 0<=r+dr<rows and 0<=c+dc<cols]
+    def key(r,c): return r*cols+c
+
+    def valid(walk):
+        ps = set(key(r,c) for r,c in walk)
+        for i,(r,c) in enumerate(walk):
+            pn = [x for x in nbs(r,c) if key(*x) in ps]
+            isEP = i==0 or i==len(walk)-1
+            if (isEP and len(pn)!=1) or (not isEP and len(pn)!=2): return False
+            adj = [x for x in nbs(r,c) if key(*x) in ps
+                   and not (i>0 and x==walk[i-1])
+                   and not (i<len(walk)-1 and x==walk[i+1])]
+            if adj: return False
+        return True
+
+    for _ in range(500):
+        walk = [(0,0)]
+        pos = {key(0,0): 0}
+        cur = (0,0)
+        er, ec = rows-1, cols-1
+        steps = 0
+        while (cur != (er,ec)) and steps < rows*cols*30:
+            steps += 1
+            nb = _rnd.choice(nbs(*cur))
+            k = key(*nb)
+            if k in pos:
+                ls = pos[k]
+                for cell in walk[ls+1:]: del pos[key(*cell)]
+                walk = walk[:ls+1]
+                cur = nb
+            else:
+                pos[k] = len(walk)
+                walk.append(nb)
+                cur = nb
+        if cur == (er,ec) and valid(walk):
+            return walk
+    # fallback L形
+    p = [(0,c) for c in range(cols)] + [(r,cols-1) for r in range(1,rows)]
+    return p
+
+def mz_gen_branches(rows, cols, main_path):
+    import random as _rnd
+    dirs = [(-1,0),(1,0),(0,-1),(0,1)]
+    def nbs(r,c): return [(r+dr,c+dc) for dr,dc in dirs if 0<=r+dr<rows and 0<=c+dc<cols]
+    def key(r,c): return r*cols+c
+
+    path_set = set(key(r,c) for r,c in main_path)
+    used = set(path_set)
+    branches = []
+    n_br = _rnd.randint(2, 4)
+    cands = main_path[2:-2][:]
+    _rnd.shuffle(cands)
+    cands = cands[:n_br]
+
+    for sc in cands:
+        br = [sc]
+        cur = sc
+        bl = _rnd.randint(2, 4)
+        for _ in range(bl):
+            nexts = []
+            for nb in nbs(*cur):
+                k = key(*nb)
+                if k in used: continue
+                adj_used = [x for x in nbs(*nb) if key(*x) in used and x != cur]
+                if not adj_used:
+                    nexts.append(nb)
+            if not nexts: break
+            nxt = _rnd.choice(nexts)
+            br.append(nxt)
+            used.add(key(*nxt))
+            cur = nxt
+        if len(br) > 1:
+            branches.append(br)
+    return branches
+
+def mz_build_game(rows, cols, pathmode, diff):
+    """生成整個迷宮資料，回傳 JSON 字串給 JS"""
+    import random as _rnd
+    lo, hi = MZ_DIFF[diff]
+    primes, composites = mz_num_pool(lo, hi)
+
+    main_path = mz_gen_path(rows, cols)
+    branches = mz_gen_branches(rows, cols, main_path) if pathmode == 'branch' else []
+
+    path_set   = set(r*cols+c for r,c in main_path)
+    branch_set = set(r*cols+c for r,c in sum(branches, []))
+
+    # 填數字（主路五格不重複）
+    nums = {}
+    recent, W = [], 5
+    for r,c in main_path[1:-1]:
+        k = r*cols+c
+        forbidden = set(recent)
+        pool = [p for p in primes if p not in forbidden] or primes
+        chosen = _rnd.choice(pool)
+        nums[k] = chosen
+        recent.append(chosen)
+        if len(recent) > W: recent.pop(0)
+    for r,c in sum(branches, []):
+        k = r*cols+c
+        if k not in nums: nums[k] = _rnd.choice(primes)
+
+    # 完整 grid
+    grid = []
+    for r in range(rows):
+        row = []
+        for c in range(cols):
+            k = r*cols+c
+            if k == 0 or k == (rows-1)*cols+(cols-1):
+                row.append(None)
+            elif k in nums:
+                row.append(nums[k])
+            else:
+                row.append(_rnd.choice(composites))
+        grid.append(row)
+
+    return json.dumps({
+        'rows': rows, 'cols': cols,
+        'path': main_path,
+        'branches': branches,
+        'pathSet': list(path_set),
+        'branchSet': list(branch_set),
+        'grid': grid,
+    })
+
+def mz_check_prime(n):
+    """供 JS 呼叫的質數判斷"""
+    return mz_is_prime(int(n))
+
+# 暴露給 JS
+window.mzBuildGame = create_proxy(lambda rows, cols, pathmode, diff: mz_build_game(int(rows), int(cols), str(pathmode), str(diff)))
+window.mzCheckPrime = create_proxy(lambda n: mz_check_prime(n))
 </script>
 
 <script>
+// ── 質數迷宮 JS（DOM/動畫/pan，計算交給 PyScript）────
+(function() {
+  let MZ = {};
+  let mzTimer = null;
+  let _panCleanup = null;
+
+  // ── 從 PyScript 取得設定 ──
+  function mzGetCfg() {
+    function sel(g){ const b=document.querySelector(`[data-group="${g}"].selected`); return b?b.getAttribute('data-val'):null; }
+    const sv = sel('mazesize')||'6x8';
+    const [rows,cols] = sv.split('x').map(Number);
+    return { rows, cols, pathmode: sel('pathmode')||'simple', diff: sel('mazediff')||'easy' };
+  }
+
+  // ── 啟動 ──
+  async function mzStart() {
+    clearInterval(mzTimer);
+    if(_panCleanup){ _panCleanup(); _panCleanup=null; }
+
+    const {rows,cols,pathmode,diff} = mzGetCfg();
+
+    // 呼叫 PyScript 生成迷宮資料
+    let data;
+    try {
+      const json = window.mzBuildGame(rows, cols, pathmode, diff);
+      data = JSON.parse(json);
+    } catch(e) {
+      console.error('mzBuildGame error:', e);
+      return;
+    }
+
+    const {path, branches, pathSet, branchSet, grid} = data;
+    const pathSetObj   = new Set(pathSet);
+    const branchSetObj = new Set(branchSet);
+
+    // 初始 clickable：起點鄰居
+    const dirs=[[-1,0],[1,0],[0,-1],[0,1]];
+    function nbs(r,c){ return dirs.map(([dr,dc])=>[r+dr,c+dc]).filter(([nr,nc])=>nr>=0&&nr<rows&&nc>=0&&nc<cols); }
+    const initCk=new Set();
+    nbs(0,0).forEach(([nr,nc])=>initCk.add(nr*cols+nc));
+
+    MZ = {
+      rows,cols,diff,pathmode,path,pathSetObj,branchSetObj,
+      grid, clickable:initCk, clicked:new Set(),
+      lives:5, errors:0, finished:false, startTime:Date.now(), nbs,
+    };
+
+    // UI 初始化
+    document.getElementById('maze-complete-banner').style.display='none';
+    document.getElementById('maze-complete-banner').className='complete-banner';
+    document.getElementById('maze-next-btn').style.display='none';
+    document.getElementById('maze-score-entry-msg').style.display='none';
+    document.getElementById('maze-inline-scoreboard').style.display='none';
+    const dLabel={easy:'簡單',mid:'中等',hard:'困難',hell:'地獄'}[diff];
+    const mLabel=pathmode==='branch'?'有分支':'一條路';
+    const [lo,hi]={easy:[1,100],mid:[1,150],hard:[100,200],hell:[100,500]}[diff];
+    document.getElementById('maze-mode-label').innerHTML=
+      `<strong>質數迷宮</strong> — ${rows}×${cols}，${mLabel}，${dLabel}（${lo}~${hi}）`;
+
+    mzRenderLives();
+    mzRenderGrid();
+    mzSetupViewport();
+
+    mzTimer=setInterval(()=>{
+      if(!MZ.finished){
+        const t=(Date.now()-MZ.startTime)/1000;
+        document.getElementById('maze-timer-display').innerHTML=
+          `⏱ 計時：<span style="color:var(--gold);font-size:1.2rem">${t.toFixed(1)}</span> 秒`;
+      }
+    },100);
+
+    showScreen('maze');
+  }
+
+  function mzRenderLives(){
+    const el=document.getElementById('maze-lives-display'); el.innerHTML='';
+    for(let i=0;i<5;i++){
+      const s=document.createElement('span');
+      s.textContent=i<MZ.lives?'❤️':'🖤';
+      s.style.opacity=i<MZ.lives?'1':'0.35';
+      el.appendChild(s);
+    }
+  }
+
+  function mzCellEl(r,c){ return document.querySelector(`.maze-cell[data-r="${r}"][data-c="${c}"]`); }
+
+  function mzRenderGrid(){
+    const mg=document.getElementById('maze-grid');
+    mg.style.gridTemplateColumns=`repeat(${MZ.cols},48px)`;
+    mg.innerHTML='';
+    for(let r=0;r<MZ.rows;r++) for(let c=0;c<MZ.cols;c++){
+      const k=r*MZ.cols+c;
+      const el=document.createElement('div');
+      el.className='maze-cell'; el.dataset.r=r; el.dataset.c=c;
+      const isS=r===0&&c===0, isE=r===MZ.rows-1&&c===MZ.cols-1;
+      if(isS){ el.classList.add('mz-start'); el.textContent='S'; }
+      else if(isE){ el.classList.add('mz-end'); el.textContent='E'; }
+      else if(MZ.clicked.has(k)){
+        el.classList.add('mz-correct'); el.textContent=MZ.grid[r][c];
+        const b=document.createElement('span'); b.className='mz-badge'; b.textContent='✓'; el.appendChild(b);
+      } else if(MZ.clickable.has(k)){
+        el.classList.add('mz-visible'); el.textContent=MZ.grid[r][c];
+        el.addEventListener('click',()=>mzClick(r,c));
+      } else {
+        el.classList.add('mz-locked'); el.textContent=MZ.grid[r][c];
+      }
+      mg.appendChild(el);
+    }
+  }
+
+  function mzClick(r,c){
+    if(MZ.finished) return;
+    const k=r*MZ.cols+c; if(MZ.clicked.has(k)) return;
+    const num=MZ.grid[r][c];
+    const el=mzCellEl(r,c);
+
+    // 呼叫 PyScript 判斷質數
+    const isPrime = window.mzCheckPrime(num);
+
+    if(isPrime){
+      MZ.clicked.add(k); MZ.clickable.delete(k);
+      // 展開鄰居
+      MZ.nbs(r,c).forEach(([nr,nc])=>{
+        const nk=nr*MZ.cols+nc;
+        const isSE=(nr===0&&nc===0)||(nr===MZ.rows-1&&nc===MZ.cols-1);
+        if(!MZ.clicked.has(nk)&&!isSE&&!MZ.clickable.has(nk)){
+          MZ.clickable.add(nk);
+          const nb=mzCellEl(nr,nc);
+          if(nb&&nb.classList.contains('mz-locked')){
+            nb.className='maze-cell mz-visible';
+            nb.addEventListener('click',()=>mzClick(nr,nc));
+          }
+        }
+      });
+      el.className='maze-cell mz-correct'; el.textContent=num;
+      const b=document.createElement('span'); b.className='mz-badge'; b.textContent='✓'; el.appendChild(b);
+      sfx_correct();
+      if(MZ.path.slice(1,-1).every(([pr,pc])=>MZ.clicked.has(pr*MZ.cols+pc))) mzFinish();
+    } else {
+      MZ.errors++;
+      const spans=document.getElementById('maze-lives-display').children;
+      MZ.lives=Math.max(0,MZ.lives-1);
+      const lost=spans[MZ.lives];
+      if(lost){ lost.classList.add('mz-heart-lost'); setTimeout(()=>{ lost.textContent='🖤'; lost.style.opacity='0.35'; lost.classList.remove('mz-heart-lost'); },400); }
+      el.classList.remove('mz-visible'); el.classList.add('mz-wrong');
+      sfx_wrong();
+      if(MZ.lives===0){ setTimeout(mzGameOver,500); }
+      else { setTimeout(()=>{ if(!MZ.finished){ el.classList.remove('mz-wrong'); el.classList.add('mz-visible'); }},800); }
+    }
+  }
+
+  function mzFinish(){
+    MZ.finished=true; clearInterval(mzTimer);
+    sfx_finish();
+    const t=(Date.now()-MZ.startTime)/1000;
+    document.getElementById('maze-timer-display').innerHTML=
+      `⏱ 完成時間：<span style="color:#3ddc84;font-size:1.2rem">${t.toFixed(1)}</span> 秒`;
+
+    // 爆破動畫
+    const pc=MZ.path;
+    const step=Math.max(50,Math.min(120,1400/pc.length));
+    pc.forEach(([r,c],i)=>setTimeout(()=>{
+      const el=mzCellEl(r,c); if(!el) return;
+      const isS=r===0&&c===0, isE=r===MZ.rows-1&&c===MZ.cols-1;
+      if(isS||isE){ el.style.boxShadow='0 0 24px rgba(61,220,132,1)'; el.style.borderColor='#3ddc84'; el.style.color='#3ddc84'; }
+      else { el.className='maze-cell mz-blast'; el.textContent=MZ.grid[r][c]; }
+    },i*step));
+
+    setTimeout(()=>{
+      const now=new Date().toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+      const {diff,pathmode,rows,cols,lives,errors,path}=MZ;
+      const scoreKey=`maze_${pathmode}_${diff}_${rows}x${cols}`;
+      const entry={time:Math.round(t*100)/100,errors,correct:path.length-2,total:path.length-2,date:now};
+      // 存成績
+      const scores=JSON.parse(localStorage.getItem('primePWA_scores')||'{}');
+      if(!scores[scoreKey]) scores[scoreKey]=[];
+      scores[scoreKey].push(entry);
+      scores[scoreKey].sort((a,b)=>a.time-b.time);
+      scores[scoreKey]=scores[scoreKey].slice(0,5);
+      localStorage.setItem('primePWA_scores',JSON.stringify(scores));
+      const rankList=scores[scoreKey];
+      // 顯示結算
+      const banner=document.getElementById('maze-complete-banner');
+      banner.style.display='block'; banner.className='complete-banner';
+      const hearts='❤️'.repeat(lives)+'🖤'.repeat(5-lives);
+      document.getElementById('maze-complete-icon').textContent=errors===0?'🏆':'🎉';
+      document.getElementById('maze-complete-msg').textContent=
+        `用時 ${t.toFixed(1)} 秒　${hearts}　${errors===0?'完美！零失誤！':'失誤 '+errors+' 次'}`;
+      // 排名訊息
+      const myRank=rankList.findIndex(r=>r.time===entry.time&&r.date===entry.date)+1;
+      const msgEl=document.getElementById('maze-score-entry-msg');
+      if(msgEl){
+        msgEl.innerHTML=myRank>0&&myRank<=5
+          ?(myRank<=3?`<span style="color:var(--gold)">🏆 本次成績排第 ${myRank} 名！</span>`:`<span style="color:var(--chalk-dim)">本次成績排第 ${myRank} 名</span>`)
+          :`<span style="color:var(--chalk-dim)">本次未進前 5 名</span>`;
+        msgEl.style.display='block';
+      }
+      // inline 排行榜
+      const board=document.getElementById('maze-inline-scoreboard');
+      if(board){
+        const medals=['🥇','🥈','🥉','4','5'];
+        let html=`<div style="font-size:.8rem;color:var(--chalk-dim);margin-bottom:6px;text-align:center">── 本項排行榜 ──</div>
+          <table class="scores-table" style="width:100%"><tr><th>名次</th><th>時間</th><th>失誤</th><th>日期</th></tr>`;
+        rankList.forEach((r,i)=>{
+          const isMe=r.time===entry.time&&r.date===entry.date;
+          html+=`<tr class="rank-${i+1}" style="${isMe?'background:rgba(240,192,64,.1)':''}"><td>${medals[i]}</td><td>${r.time.toFixed(1)}s</td><td>${r.errors}次</td><td style="font-size:.75rem;color:var(--chalk-dim)">${r.date||''}</td></tr>`;
+        });
+        html+='</table>'; board.innerHTML=html; board.style.display='block';
+      }
+      document.getElementById('maze-next-btn').style.display='';
+    }, pc.length*step+500);
+  }
+
+  function mzGameOver(){
+    MZ.finished=true; clearInterval(mzTimer);
+    const t=(Date.now()-MZ.startTime)/1000;
+    document.getElementById('maze-timer-display').innerHTML=
+      `⏱ 時間：<span style="color:var(--gold);font-size:1.2rem">${t.toFixed(1)}</span> 秒`;
+    MZ.path.slice(1,-1).forEach(([r,c])=>{
+      const k=r*MZ.cols+c; const el=mzCellEl(r,c);
+      if(el&&!MZ.clicked.has(k)){ el.className='maze-cell mz-gameover'; el.textContent=MZ.grid[r][c]; }
+    });
+    const banner=document.getElementById('maze-complete-banner');
+    banner.style.display='block'; banner.className='complete-banner gameover';
+    document.getElementById('maze-complete-icon').textContent='💀';
+    document.getElementById('maze-complete-msg').textContent=`命數耗盡！用時 ${t.toFixed(1)} 秒`;
+    document.getElementById('maze-next-btn').style.display='';
+  }
+
+  // ── Viewport / Pan ──
+  function mzSetupViewport(){
+    const CELL=48,GAP=3,PAD=6,STEP=CELL+GAP;
+    const {rows,cols}=MZ;
+    const gridW=cols*STEP+PAD*2-GAP, gridH=rows*STEP+PAD*2-GAP;
+    const isPan=rows>=10;
+    const vpC=Math.min(cols,8), vpR=Math.min(rows,8);
+    const vpW=vpC*STEP+PAD*2, vpH=vpR*STEP+PAD*2;
+    const wrap=document.getElementById('maze-wrap');
+    const mg=document.getElementById('maze-grid');
+    if(isPan){
+      wrap.className='pan-mode'; wrap.style.width=vpW+'px'; wrap.style.height=vpH+'px'; wrap.style.maxWidth='100%';
+      mg.style.width=gridW+'px'; mg.style.height=gridH+'px'; mg.style.left='0px'; mg.style.top='0px';
+      mzInitPan(wrap,mg,gridW,gridH,vpW,vpH);
+    } else {
+      wrap.className='scroll-mode'; wrap.style.width=''; wrap.style.height='';
+      mg.style.position=''; mg.style.left=''; mg.style.top=''; mg.style.cursor='';
+    }
+  }
+
+  function mzInitPan(wrap,grid,gridW,gridH,vpW,vpH){
+    if(_panCleanup){ _panCleanup(); _panCleanup=null; }
+    let ox=0,oy=0,sx,sy,dragging=false,moved=false;
+    function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+    function apply(x,y){ ox=clamp(x,-(gridW-vpW),0); oy=clamp(y,-(gridH-vpH),0); grid.style.left=ox+'px'; grid.style.top=oy+'px'; }
+    function onMD(e){ if(e.button!==0) return; dragging=true; moved=false; sx=e.clientX-ox; sy=e.clientY-oy; e.preventDefault(); }
+    function onMM(e){ if(!dragging) return; if(Math.abs(e.clientX-ox-sx)>3||Math.abs(e.clientY-oy-sy)>3) moved=true; apply(e.clientX-sx,e.clientY-sy); }
+    function onMU(){ dragging=false; }
+    function onTS(e){ if(e.touches.length!==1) return; dragging=true; moved=false; sx=e.touches[0].clientX-ox; sy=e.touches[0].clientY-oy; }
+    function onTM(e){ if(!dragging||e.touches.length!==1) return; if(Math.abs(e.touches[0].clientX-ox-sx)>3||Math.abs(e.touches[0].clientY-oy-sy)>3) moved=true; apply(e.touches[0].clientX-sx,e.touches[0].clientY-sy); e.preventDefault(); }
+    function onTE(){ dragging=false; }
+    wrap.addEventListener('click',e=>{ if(moved){ e.stopPropagation(); moved=false; } },true);
+    wrap.addEventListener('mousedown',onMD); window.addEventListener('mousemove',onMM); window.addEventListener('mouseup',onMU);
+    wrap.addEventListener('touchstart',onTS,{passive:true}); wrap.addEventListener('touchmove',onTM,{passive:false}); wrap.addEventListener('touchend',onTE);
+    _panCleanup=()=>{
+      wrap.removeEventListener('mousedown',onMD); window.removeEventListener('mousemove',onMM); window.removeEventListener('mouseup',onMU);
+      wrap.removeEventListener('touchstart',onTS); wrap.removeEventListener('touchmove',onTM); wrap.removeEventListener('touchend',onTE);
+    };
+    apply(0,0);
+  }
+
+  // ── 成績排行榜整合（加入 renderScoresScreen）──
+  const _origRSS = window.renderScoresScreen;
+  window.renderScoresScreen = function() {
+    _origRSS && _origRSS();
+    const scores=JSON.parse(localStorage.getItem('primePWA_scores')||'{}');
+    const container=document.getElementById('scores-content');
+    if(!container) return;
+    const medals=['🥇','🥈','🥉','4','5'];
+    const diffLabel={easy:'簡單',mid:'中等',hard:'困難',hell:'地獄'};
+    const pathLabel={simple:'一條路',branch:'有分支'};
+    const mazeKeys=Object.keys(scores).filter(k=>k.startsWith('maze_')).sort();
+    if(mazeKeys.length===0) return;
+    let html='<div class="scores-section"><h3>⑤ 質數迷宮</h3>';
+    mazeKeys.forEach(key=>{
+      const rows=scores[key];
+      if(!rows||rows.length===0) return;
+      // key = maze_{pathmode}_{diff}_{rows}x{cols}
+      const parts=key.split('_');
+      const pm=pathLabel[parts[1]]||parts[1];
+      const df=diffLabel[parts[2]]||parts[2];
+      const sz=parts[3]||'';
+      const subLabel=`${sz} ${pm} ${df}`;
+      html+=`<div style="font-size:.8rem;color:var(--chalk-dim);margin:8px 0 4px;padding-left:4px">${subLabel}</div>
+        <table class="scores-table"><tr><th>名次</th><th>時間</th><th>失誤</th><th>日期</th></tr>`;
+      rows.forEach((r,i)=>{
+        html+=`<tr class="rank-${i+1}"><td>${medals[i]}</td><td>${r.time.toFixed(1)}s</td><td>${r.errors}次</td><td style="font-size:.75rem;color:var(--chalk-dim)">${r.date||''}</td></tr>`;
+      });
+      html+='</table>';
+    });
+    html+='</div>';
+    container.innerHTML+=html;
+  };
+
+  // ── 按鈕綁定 ──
+  document.getElementById('maze-back-btn').addEventListener('click',()=>{
+    clearInterval(mzTimer); if(_panCleanup){_panCleanup();_panCleanup=null;} showScreen('menu');
+  });
+  document.getElementById('maze-retry-btn').addEventListener('click', mzStart);
+  document.getElementById('maze-next-btn').addEventListener('click', mzStart);
+  document.getElementById('start-btn').addEventListener('click', ()=>{
+    const m=document.querySelector('[data-group="mode"].selected');
+    if(m&&m.dataset.val==='maze') mzStart();
+  });
+})();
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then(reg => {
