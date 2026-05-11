@@ -1746,13 +1746,24 @@ window.mzCheckPrime = create_proxy(lambda n: mz_check_prime(n))
     const {rows,cols}=MZ;
     const gridW=cols*STEP+PAD*2-GAP, gridH=rows*STEP+PAD*2-GAP;
     const isPan=rows>=10;
-    const vpC=Math.min(cols,8), vpR=Math.min(rows,8);
-    const vpW=vpC*STEP+PAD*2, vpH=vpR*STEP+PAD*2;
+
+    // viewport：用實際可用寬度，高度固定約 8 列
+    const availW = Math.min(window.innerWidth - 32, 520); // 螢幕寬減 padding，最大 520
+    const vpCols = Math.floor((availW - PAD*2 + GAP) / STEP);
+    const vpW = Math.min(gridW, vpCols * STEP + PAD*2);
+    const vpRows = Math.min(rows, 8);
+    const vpH = vpRows * STEP + PAD*2;
     const wrap=document.getElementById('maze-wrap');
     const mg=document.getElementById('maze-grid');
     if(isPan){
-      wrap.className='pan-mode'; wrap.style.width=vpW+'px'; wrap.style.height=vpH+'px'; wrap.style.maxWidth='100%';
-      mg.style.width=gridW+'px'; mg.style.height=gridH+'px'; mg.style.left='0px'; mg.style.top='0px';
+      wrap.className='pan-mode';
+      wrap.style.width=vpW+'px';
+      wrap.style.height=vpH+'px';
+      wrap.style.maxWidth='100%';
+      mg.style.width=gridW+'px';
+      mg.style.height=gridH+'px';
+      mg.style.left='0px';
+      mg.style.top='0px';
       mzInitPan(wrap,mg,gridW,gridH,vpW,vpH);
     } else {
       wrap.className='scroll-mode'; wrap.style.width=''; wrap.style.height='';
@@ -1764,7 +1775,15 @@ window.mzCheckPrime = create_proxy(lambda n: mz_check_prime(n))
     if(_panCleanup){ _panCleanup(); _panCleanup=null; }
     let ox=0,oy=0,sx,sy,dragging=false,moved=false;
     function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
-    function apply(x,y){ ox=clamp(x,-(gridW-vpW),0); oy=clamp(y,-(gridH-vpH),0); grid.style.left=ox+'px'; grid.style.top=oy+'px'; }
+    function apply(x,y){
+      // 取得實際 wrap 的當前寬高（可能因 maxWidth 而小於 vpW）
+      const actualW = wrap.offsetWidth || vpW;
+      const actualH = wrap.offsetHeight || vpH;
+      ox=clamp(x,-(gridW-actualW),0);
+      oy=clamp(y,-(gridH-actualH),0);
+      grid.style.left=ox+'px';
+      grid.style.top=oy+'px';
+    }
     function onMD(e){ if(e.button!==0) return; dragging=true; moved=false; sx=e.clientX-ox; sy=e.clientY-oy; e.preventDefault(); }
     function onMM(e){ if(!dragging) return; if(Math.abs(e.clientX-ox-sx)>3||Math.abs(e.clientY-oy-sy)>3) moved=true; apply(e.clientX-sx,e.clientY-sy); }
     function onMU(){ dragging=false; }
