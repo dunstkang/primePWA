@@ -1766,8 +1766,12 @@ window.mzCheckPrime = create_proxy(lambda n: mz_check_prime(n))
       mg.style.top='0px';
       mzInitPan(wrap,mg,gridW,gridH,vpW,vpH);
     } else {
-      wrap.className='scroll-mode'; wrap.style.width=''; wrap.style.height='';
-      mg.style.position=''; mg.style.left=''; mg.style.top=''; mg.style.cursor='';
+      if(_panCleanup){ _panCleanup(); _panCleanup=null; }
+      wrap.className='scroll-mode';
+      // 完整清除 pan 模式留下的所有 inline style
+      ['width','height','maxWidth','position','left','top','cursor','transform'].forEach(p=>{
+        wrap.style[p]=''; mg.style[p]='';
+      });
     }
   }
 
