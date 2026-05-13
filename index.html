@@ -279,6 +279,16 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
 </head>
 <body>
 
+<!-- 加入主畫面提示框 -->
+<div id="install-modal" style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,.7); align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#1a3a2a; border:1px solid var(--gold); border-radius:16px; padding:24px; max-width:360px; width:100%; position:relative;">
+    <button onclick="document.getElementById('install-modal').style.display='none'"
+      style="position:absolute;top:10px;right:14px;background:none;border:none;color:var(--chalk-dim);font-size:1.4rem;cursor:pointer;line-height:1">✕</button>
+    <div style="font-family:'Fredoka One',cursive;font-size:1.2rem;color:var(--gold);margin-bottom:12px" id="install-title">📲 加入主畫面</div>
+    <div style="font-size:0.9rem;color:var(--chalk);line-height:1.8" id="install-body"></div>
+  </div>
+</div>
+
 <!-- 新版更新提示條 -->
 <div id="update-bar">
   <span>🎉 有新版本可用！</span>
@@ -304,6 +314,9 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
   </button>
   <button class="audio-btn on" id="btn-sfx" onclick="toggleSfx()">
     <span class="icon">🔔</span> 音效
+  </button>
+  <button class="audio-btn" id="btn-install" onclick="handleInstall()" style="display:none">
+    <span class="icon">📲</span> 加入主畫面
   </button>
 </div>
 <h1>🔢 質數挑戰</h1>
@@ -558,7 +571,153 @@ function sfx_finish() {
   notes.forEach((f, i) => setTimeout(() => _playTone(f, 'sine', 0.22, 0.35), i * 120));
 }
 
-// ── 排行榜 (localStorage) ────────────────────────
+// ── 加入主畫面 ────────────────────────────────────
+let _deferredPrompt = null;
+
+// 偵測平台
+function detectPlatform() {
+  const ua = navigator.userAgent;
+  const isIOS       = /iPhone|iPad|iPod/.test(ua);
+  const isMac       = /Macintosh/.test(ua) && !isIOS;
+  const isAndroid   = /Android/.test(ua);
+  const isChrome    = /Chrome/.test(ua) && !/Edg/.test(ua);
+  const isEdge      = /Edg/.test(ua);
+  const isSafari    = /Safari/.test(ua) && !isChrome && !isEdge;
+  const isFF        = /Firefox/.test(ua);
+  const isLINE      = /Line\//.test(ua);
+  const isFB        = /FBAN|FBAV/.test(ua);
+  const isIGTV      = /Instagram/.test(ua);
+  const isWebView   = isLINE || isFB || isIGTV
+                   || (/wv/.test(ua) && isAndroid)
+                   || (isIOS && !/Safari/.test(ua) && /AppleWebKit/.test(ua));
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true;
+  return { isIOS, isMac, isAndroid, isChrome, isEdge, isSafari, isFF,
+           isLINE, isWebView, isStandalone };
+}
+
+// 接收瀏覽器原生安裝事件（Chrome/Edge Android+Windows）
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  _deferredPrompt = e;
+  const btn = document.getElementById('btn-install');
+  if (btn) btn.style.display = '';
+});
+
+// 已安裝後隱藏按鈕
+window.addEventListener('appinstalled', () => {
+  _deferredPrompt = null;
+  const btn = document.getElementById('btn-install');
+  if (btn) btn.style.display = 'none';
+});
+
+function handleInstall() {
+  const p = detectPlatform();
+
+  if (p.isStandalone) {
+    document.getElementById('btn-install').style.display = 'none';
+    return;
+  }
+
+  // LINE / WebView：提示用外部瀏覽器開啟
+  if (p.isWebView) {
+    const url = encodeURIComponent(location.href);
+    let openBtnHtml = `<br><br>
+      <button onclick="openInExternalBrowser()"
+        style="margin-top:4px;padding:12px 20px;background:var(--gold);color:#1a3a2a;
+               border:none;border-radius:10px;font-size:1rem;cursor:pointer;
+               font-weight:700;width:100%;font-family:'Noto Sans TC',sans-serif">
+        🌐 用外部瀏覽器開啟
+      </button>`;
+    showInstallModal(
+      '📲 加入主畫面',
+      '目前在 LINE 或 App 內建瀏覽器中，<br>無法直接安裝。<br><br>' +
+      '請點下方按鈕用外部瀏覽器開啟，<br>再進行安裝。' + openBtnHtml
+    );
+    return;
+  }
+
+  // Android/Windows Chrome/Edge：原生安裝
+  if (_deferredPrompt) {
+    _deferredPrompt.prompt();
+    _deferredPrompt.userChoice.then(() => { _deferredPrompt = null; });
+    return;
+  }
+
+  // iOS Safari
+  if (p.isIOS && p.isSafari) {
+    showInstallModal(
+      '📲 加入主畫面（iOS）',
+      '1. 點選下方工具列的 <strong>分享</strong> 按鈕（方框加箭頭圖示）<br>' +
+      '2. 在選單中找到 <strong>「加入主畫面」</strong><br>' +
+      '3. 點 <strong>「新增」</strong> 完成安裝'
+    );
+    return;
+  }
+
+  // Mac Safari
+  if (p.isMac && p.isSafari) {
+    showInstallModal(
+      '📲 加入 Dock（Mac Safari）',
+      '1. 點選上方選單列 <strong>「檔案」</strong><br>' +
+      '2. 選擇 <strong>「加入 Dock⋯」</strong><br>' +
+      '3. 點 <strong>「加入」</strong> 完成'
+    );
+    return;
+  }
+
+  // Firefox 或其他
+  showInstallModal(
+    '📲 加入主畫面',
+    '你的瀏覽器不支援直接安裝。<br><br>' +
+    '建議改用 <strong>Chrome</strong> 或 <strong>Edge</strong> 開啟本頁面，<br>' +
+    '即可直接安裝為 App。'
+  );
+}
+
+function openInExternalBrowser() {
+  const url = location.href;
+  const p = detectPlatform();
+  // LINE 的 intent URL（Android）
+  if (p.isAndroid) {
+    // Android：用 intent 讓系統選擇外部瀏覽器
+    const intent = `intent://${url.replace(/^https?:\/\//,'')}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end`;
+    location.href = intent;
+    return;
+  }
+  // iOS LINE：用 x-safari-https scheme
+  if (p.isIOS) {
+    // 先試 Chrome
+    const chrome = url.replace(/^https/, 'googlechrome');
+    const w = window.open(chrome, '_blank');
+    if (!w) {
+      // Chrome 沒安裝，改用 Safari scheme
+      location.href = url.replace(/^https?/, 'x-safari-https');
+    }
+    return;
+  }
+  // 其他：直接開新視窗
+  window.open(url, '_blank');
+}
+
+function showInstallModal(title, body) {
+  document.getElementById('install-title').innerHTML = title;
+  document.getElementById('install-body').innerHTML  = body;
+  document.getElementById('install-modal').style.display = 'flex';
+}
+
+// 初始化：判斷是否需要顯示按鈕
+(function initInstallBtn() {
+  const p = detectPlatform();
+  const btn = document.getElementById('btn-install');
+  if (!btn) return;
+  // 已安裝：不顯示
+  if (p.isStandalone) { btn.style.display = 'none'; return; }
+  // Chrome/Edge 原生：等 beforeinstallprompt 觸發才顯示
+  // iOS Safari / Mac Safari / Firefox / WebView：直接顯示
+  if (p.isIOS || p.isMac || p.isFF || p.isWebView) btn.style.display = '';
+  // Chrome/Edge 的 beforeinstallprompt 會自己顯示
+})();
 const SCORE_KEY = 'primePWA_scores';
 const MAX_RANK  = 5;
 
