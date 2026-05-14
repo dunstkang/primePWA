@@ -405,7 +405,15 @@ h1 { font-family:'Fredoka One',cursive; font-size:2rem; letter-spacing:2px; colo
     <div style="font-family:'Fredoka One',cursive;color:var(--gold);font-size:1.1rem">🏆 成績記錄</div>
     <button class="back-btn" onclick="exportScores()" style="color:var(--gold);border-color:var(--gold)">📥 匯出</button>
   </div>
-  <div id="scores-content" style="width:100%;overflow-y:auto;padding-bottom:20px"></div>
+  <div id="scores-content" style="width:100%;overflow-y:auto;padding-bottom:8px"></div>
+  <button onclick="confirmReset()"
+    style="width:100%;margin-top:14px;padding:12px;background:transparent;
+           border:1px solid #5a2a2a;color:#e05c5c;border-radius:10px;
+           font-size:0.9rem;font-family:'Noto Sans TC',sans-serif;cursor:pointer;
+           transition:all .15s"
+    onmouseover="this.style.background='#2a0a0a'" onmouseout="this.style.background='transparent'">
+    🗑 清除所有成績紀錄
+  </button>
 </div>
 
 <!-- ====== MAZE SCREEN ====== -->
@@ -876,6 +884,25 @@ function showScoreEntry(mode, entryJson, rankListJson) {
       board.innerHTML = html;
       board.style.display = 'block';
     }
+}
+
+function confirmReset() {
+  const questions = [
+    '你真的要把紀錄清除嗎？\n（第 1 次確認）',
+    '你真的要把紀錄清除嗎？\n（第 2 次確認）',
+    '你真的要把紀錄清除嗎？\n（第 3 次確認，清除後無法復原）',
+  ];
+  for (let i = 0; i < questions.length; i++) {
+    const ok = confirm(questions[i]);
+    if (!ok) {
+      showScreen('menu');
+      return;
+    }
+  }
+  // 三次都確認：清除
+  localStorage.removeItem('primePWA_scores');
+  showScreen('menu');
+  alert('✅ 成績紀錄已清除。');
 }
 
 function exportScores() {
